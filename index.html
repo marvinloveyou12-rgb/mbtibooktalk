@@ -344,20 +344,6 @@ img{max-width:100%}
 .rev-date{font-size:.76rem;color:#aaa}
 .rev-text{font-size:.86rem;line-height:1.65;color:#444}
 
-/* ── MODE BANNER ── */
-.mode-live{background:#E8FFF0;color:#27AE60;border:1.5px solid #27AE60}
-.mode-local{background:#FFF8E7;color:var(--yellow-d);border:1.5px solid var(--yellow)}
-.mode-banner{
-  display:flex;align-items:center;gap:8px;padding:9px 14px;
-  border-radius:11px;font-size:.8rem;font-weight:700;margin-bottom:14px;
-}
-
-/* ── SETUP ── */
-.setup-step{background:var(--white);border-radius:var(--radius-lg);padding:22px;box-shadow:var(--shadow-sm);margin-bottom:14px}
-.step-row{display:flex;align-items:center;gap:13px;margin-bottom:13px}
-.step-circle{width:34px;height:34px;border-radius:50%;background:var(--green);color:var(--white);font-weight:900;font-size:1rem;display:flex;align-items:center;justify-content:center;flex-shrink:0}
-.step-title{font-weight:700;font-size:.97rem}
-.step-body{font-size:.86rem;color:#555;line-height:1.7}
 .step-body a{color:var(--orange);text-decoration:underline}
 .code-block{
   background:#1E1E2E;color:#CDD6F4;padding:14px 16px;border-radius:13px;
@@ -452,7 +438,6 @@ img{max-width:100%}
 <div id="pg-select"  class="page"></div>
 <div id="pg-room"    class="page"></div>
 <div id="pg-detail"  class="page"></div>
-<div id="pg-setup"   class="page"></div>
 
 <!-- FAB -->
 <button class="fab hidden" id="fab" onclick="nav('room',{tab:'search'})">+</button>
@@ -716,7 +701,6 @@ function renderPage() {
   else if(state.page==='select') renderSelect();
   else if(state.page==='room') renderRoom();
   else if(state.page==='detail') renderDetail();
-  else if(state.page==='setup') renderSetup();
 }
 
 /* ══════════════════════════════════════════
@@ -923,7 +907,6 @@ function renderRoom() {
 
     <!-- community tab -->
     <div id="tab-community" style="display:${state.tab==='community'?'block':'none'}">
-      <div id="modeNotice"></div>
       <div id="communityContent"><div class="loader"><span></span><span></span><span></span></div></div>
       <button onclick="switchTab('search')"
         style="display:block;width:100%;padding:14px;border-radius:50px;background:var(--yellow);color:#fff;font-weight:700;font-size:1rem;border:none;cursor:pointer;margin-bottom:28px">
@@ -933,7 +916,6 @@ function renderRoom() {
 
     <!-- search tab -->
     <div id="tab-search" style="display:${state.tab==='search'?'block':'none'}">
-      <div id="modeNotice2"></div>
       <p style="font-size:.87rem;color:var(--gray);margin-bottom:16px;line-height:1.55">
         📖 <strong style="color:${d.color}">${state.type} ${d.name}</strong> 유형 친구들에게 책을 추천해 보세요!<br>
         검색 후 한줄평을 남기면 커뮤니티 방에 실시간으로 공유됩니다.
@@ -963,12 +945,6 @@ function renderRoom() {
     grid.appendChild(card);
     fetchCover(card.querySelector('.cover-wrap'),b.isbn,b.query||b.title);
   });
-
-  // mode banners
-  const banner=db
-    ?`<div class="mode-banner mode-live">🌐 실시간 공유 모드 — 모든 방문자가 함께 봐요!</div>`
-    :`<div class="mode-banner mode-local">💾 로컬 모드 — <button onclick="nav('setup')" style="background:none;border:none;color:var(--yellow-d);font-weight:700;cursor:pointer;text-decoration:underline;font-size:.8rem">Firebase 설정</button> 후 공유 가능해요.</div>`;
-  ['modeNotice','modeNotice2'].forEach(id=>{const el=document.getElementById(id);if(el)el.innerHTML=banner;});
 
   // subscribe community
   roomUnsub=subscribeRecs(state.type,books=>{
@@ -1300,42 +1276,6 @@ async function submitRevBtn(bk) {
 /* ══════════════════════════════════════════
    PAGE: SETUP
    ══════════════════════════════════════════ */
-function renderSetup() {
-  document.getElementById('pg-setup').innerHTML=`
-  <div class="hero-band" style="background:linear-gradient(135deg,#FF7043,#FFB830)">
-    <div class="hero-icon">🔥</div>
-    <div class="hero-title">Firebase 설정 가이드</div>
-    <div class="hero-sub">5분이면 완료! 설정 후 모든 방문자가<br>실시간으로 도서를 함께 공유할 수 있어요.</div>
-  </div>
-  <div class="inner">
-  ${[
-    ['Firebase 프로젝트 만들기','<a href="https://console.firebase.google.com" target="_blank">console.firebase.google.com</a>에 접속 → <strong>새 프로젝트 만들기</strong> → 이름 입력 → 생성 (Google Analytics는 꺼도 됨)'],
-    ['Firestore 활성화','왼쪽 메뉴 <strong>Firestore Database</strong> → 데이터베이스 만들기<br>• 위치: <strong>asia-northeast3 (서울)</strong><br>• 모드: <strong>테스트 모드로 시작</strong>'],
-    ['웹 앱 등록','프로젝트 개요 → <strong>&lt;/&gt; 웹 아이콘</strong> 클릭 → 앱 닉네임 입력 → 등록<br>→ <code style="background:#F0F0E8;padding:2px 6px;border-radius:4px">firebaseConfig</code> 전체를 복사'],
-    ['index.html 수정','파일 상단 <strong>FIREBASE_CONFIG</strong> 객체에 복사한 값을 붙여넣으세요'],
-    ['보안 규칙 설정','Firebase 콘솔 → Firestore → <strong>규칙 탭</strong> → 아래 규칙으로 교체 후 게시'],
-  ].map(([t,b],i)=>`
-  <div class="setup-step">
-    <div class="step-row"><div class="step-circle">${i+1}</div><div class="step-title">${t}</div></div>
-    <div class="step-body">${b}</div>
-  </div>`).join('')}
-  <div class="sec-card">
-    <div class="sec-title">Firestore 보안 규칙 (테스트용)</div>
-    <div class="code-block">rules_version = '2';
-service cloud.firestore {
-  match /databases/{database}/documents {
-    match /{document=**} {
-      <span class="hl">allow read, write: if true;</span>  <span class="cm">// 프로토타입용</span>
-    }
-  }
-}</div>
-    <div class="warn-box">⚠️ 위 규칙은 누구나 읽기·쓰기 가능합니다. 실제 서비스 배포 시에는 인증(Auth)과 함께 규칙을 강화하세요.</div>
-  </div>
-  <button onclick="nav('landing')" style="display:block;width:100%;padding:16px;border-radius:50px;background:var(--green);color:#fff;font-weight:700;font-size:1.05rem;border:none;cursor:pointer;margin-bottom:8px;box-shadow:0 4px 14px rgba(141,196,135,.4)">
-    ✅ 설정 완료! 홈으로 돌아가기
-  </button>
-  </div>`;
-}
 
 /* ══════════════════════════════════════════
    UTILS
