@@ -312,7 +312,6 @@ img{max-width:100%}
 .lib-link:hover{opacity:.85;transform:translateY(-2px)}
 .ll-icon{font-size:1.5rem}
 .ll-aladin{background:linear-gradient(135deg,#FF7043,#E64A19)}
-.ll-jbnu{background:linear-gradient(135deg,#5BA3DC,#3A7BC8)}
 .ll-google{background:linear-gradient(135deg,#9C6FDE,#7B4FBE)}
 
 .sec-card{background:var(--white);border-radius:var(--radius-lg);padding:22px;box-shadow:var(--shadow-sm);margin-bottom:18px}
@@ -676,7 +675,6 @@ function _imgOk(url) {
 }
 
 function aladinUrl(isbn,title){return isbn?`https://www.aladin.co.kr/shop/wproduct.aspx?ISBN=${isbn}`:`https://www.aladin.co.kr/search/wsearchresult.aspx?SearchTarget=Book&query=${encodeURIComponent(title)}`;}
-function jbnuUrl(title){return `https://lib.jbnu.ac.kr/search/tot/result.do?st=KWRD&si=TOTAL&q=${encodeURIComponent(title)}`;}
 function googleUrl(title,author){return `https://books.google.com/books?q=${encodeURIComponent(title+' '+author)}`;}
 
 /* ══════════════════════════════════════════
@@ -1156,7 +1154,6 @@ function renderDetail() {
       <div class="sec-title">🔗 바로가기</div>
       <div class="link-grid">
         <a href="${aladinUrl(b.isbn,b.title)}" target="_blank" class="lib-link ll-aladin"><span class="ll-icon">📦</span>알라딘</a>
-        <a href="${jbnuUrl(b.title)}" target="_blank" class="lib-link ll-jbnu"><span class="ll-icon">🏫</span>전북대 도서관</a>
         <a href="${googleUrl(b.title,b.author)}" target="_blank" class="lib-link ll-google"><span class="ll-icon">📖</span>구글 북스</a>
       </div>
     </div>
