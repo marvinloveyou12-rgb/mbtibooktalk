@@ -1110,7 +1110,17 @@ async function submitRec() {
     document.getElementById('srchResults').innerHTML='';
     document.getElementById('srchInput').value='';
     switchTab('community');
-  } catch { showToast('오류가 발생했습니다. 다시 시도해 주세요.'); }
+    // localStorage 모드: onSnapshot이 없으므로 추가 후 수동 갱신
+    if (!db) {
+      const books = lsGet('recs_'+state.type, []);
+      renderCommunity(books);
+      const hearts = books.reduce((s,b)=>s+(b.hearts||0),0);
+      const users = new Set(books.map(b=>b.userKey)).size;
+      document.getElementById('statBooks').textContent = MBTI_DATA[state.type].books.length + books.length;
+      document.getElementById('statHearts').textContent = hearts;
+      document.getElementById('statUsers').textContent = users;
+    }
+  } catch(e) { console.error(e); showToast('오류가 발생했습니다. 다시 시도해 주세요.'); }
   finally { btn.disabled=false;btn.textContent='📤 커뮤니티에 추천하기'; }
 }
 
@@ -1180,17 +1190,68 @@ function renderDetail() {
   else{getCover((b.title||'')+' '+(b.author||''),b.isbn||'').then(u=>{if(u)setCoverDetail(u);});}
 
   // desc
-  if(!b.desc){
-    fetch(`https://www.googleapis.com/books/v1/volumes?q=${encodeURIComponent((b.title||'')+' '+(b.author||''))}&langRestrict=ko&maxResults=1`)
-      .then(r=>r.json()).then(d=>{
-        const t=d.items?.[0]?.volumeInfo?.description;
-        const el=document.getElementById('descText');
-        if(el)el.textContent=t?t.slice(0,400)+(t.length>400?'…':''):'책 소개를 불러올 수 없습니다. 알라딘에서 확인하세요.';
-      }).catch(()=>{});
-  }
+  if(!b.desc){ _loadDesc(b); }
 
   // reviews
   revUnsub=subscribeReviews(bk,reviews=>renderRevs(reviews,bk));
+}
+
+async function _loadDesc(b) {
+  const el = document.getElementById('descText');
+  if (!el) return;
+  const q = (b.title||'') + ' ' + (b.author||'');
+
+  /* 1순위: Aladin ItemLookUp (ISBN) */
+  let desc = '';
+  if (b.isbn) desc = await _aladinDescByIsbn(b.isbn);
+
+  /* 2순위: Aladin ItemSearch (키워드) */
+  if (!desc) desc = await _aladinDescByQuery(q);
+
+  /* 3순위: Google Books */
+  if (!desc) {
+    try {
+      const r = await fetch(`https://www.googleapis.com/books/v1/volumes?q=${encodeURIComponent(q)}&langRestrict=ko&maxResults=3`);
+      const d = await r.json();
+      for (const item of (d.items||[])) {
+        const t = item.volumeInfo?.description;
+        if (t && t.length > 30) { desc = t; break; }
+      }
+    } catch {}
+  }
+
+  if (!el.isConnected) return;
+  el.textContent = desc ? desc.slice(0,500)+(desc.length>500?'…':'') : '책 소개 정보가 없습니다.';
+}
+
+function _aladinDescByIsbn(isbn) {
+  return new Promise(resolve => {
+    const cb = '_adi_'+Date.now()+'_'+Math.random().toString(36).slice(2,7);
+    const s = document.createElement('script');
+    const t = setTimeout(()=>{ resolve(''); s.remove(); try{delete window[cb];}catch{} }, 5000);
+    window[cb] = data => {
+      clearTimeout(t); s.remove(); try{delete window[cb];}catch{}
+      resolve(data?.item?.[0]?.description||'');
+    };
+    s.onerror = ()=>{ clearTimeout(t); resolve(''); try{delete window[cb];}catch{} };
+    s.src = `https://www.aladin.co.kr/ttb/api/ItemLookUp.aspx?ttbkey=${ALADIN_KEY}&itemIdType=ISBN13&ItemId=${isbn}&output=js&Version=20131101&OptResult=description&CallBack=${cb}`;
+    document.head.appendChild(s);
+  });
+}
+
+function _aladinDescByQuery(q) {
+  return new Promise(resolve => {
+    const cb = '_adq_'+Date.now()+'_'+Math.random().toString(36).slice(2,7);
+    const s = document.createElement('script');
+    const t = setTimeout(()=>{ resolve(''); s.remove(); try{delete window[cb];}catch{} }, 5000);
+    window[cb] = data => {
+      clearTimeout(t); s.remove(); try{delete window[cb];}catch{}
+      resolve(data?.item?.[0]?.description||'');
+    };
+    s.onerror = ()=>{ clearTimeout(t); resolve(''); try{delete window[cb];}catch{} };
+    s.src = `https://www.aladin.co.kr/ttb/api/ItemSearch.aspx?ttbkey=${ALADIN_KEY}&Query=${encodeURIComponent(q)}&QueryType=Keyword&MaxResults=1&start=1&SearchTarget=Book&output=js&Version=20131101&CallBack=${cb}`;
+    document.head.appendChild(s);
+  });
 }
 
 function setCoverDetail(url) {
