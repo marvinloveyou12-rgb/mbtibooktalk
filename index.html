@@ -958,10 +958,9 @@ function renderRoom() {
   // subscribe community
   roomUnsub=subscribeRecs(state.type,books=>{
     renderCommunity(books);
-    const hearts=books.reduce((s,b)=>s+(b.hearts||0),0);
     const users=new Set(books.map(b=>b.userKey)).size;
     document.getElementById('statBooks').textContent=MBTI_DATA[state.type].books.length+books.length;
-    document.getElementById('statHearts').textContent=hearts;
+    document.getElementById('statHearts').textContent=calcTotalHearts(state.type,books);
     document.getElementById('statUsers').textContent=users;
   });
 
@@ -1030,6 +1029,16 @@ function makeCard(book, source, recId) {
   return card;
 }
 
+/* 큐레이션 하트(localStorage) + 커뮤니티 하트(recs) 합산 */
+function calcTotalHearts(type, communityBooks) {
+  const community = communityBooks.reduce((s,b)=>s+(b.hearts||0), 0);
+  const curated = (MBTI_DATA[type]?.books||[]).reduce((s,b)=>{
+    const hk = 'ht_'+(b.isbn||b.title||'');
+    return s + (lsGet(hk, false) ? 1 : 0);
+  }, 0);
+  return community + curated;
+}
+
 async function handleHeart(btn) {
   const hk=btn.dataset.hk;
   const hearted=btn.classList.contains('hearted');
@@ -1044,9 +1053,12 @@ async function handleHeart(btn) {
     btn.classList.toggle('hearted',nowHearted);
     const newCount = nowHearted ? count+1 : Math.max(0,count-1);
     btn.innerHTML=`${nowHearted?'❤️':'🤍'}<span class="hcnt">${newCount}</span>`;
-    // 총 하트 수 즉시 반영
+    // 총 하트 수: 큐레이션+커뮤니티 정확 재계산
     const statEl=document.getElementById('statHearts');
-    if(statEl){ statEl.textContent=Math.max(0,(parseInt(statEl.textContent)||0)+(nowHearted?1:-1)); }
+    if(statEl){
+      const commBooks = lsGet('recs_'+state.type, []);
+      statEl.textContent = calcTotalHearts(state.type, commBooks);
+    }
   } finally { btn.disabled=false; }
 }
 
@@ -1103,10 +1115,9 @@ async function submitRec() {
     if (!db) {
       const books = lsGet('recs_'+state.type, []);
       renderCommunity(books);
-      const hearts = books.reduce((s,b)=>s+(b.hearts||0),0);
       const users = new Set(books.map(b=>b.userKey)).size;
       document.getElementById('statBooks').textContent = MBTI_DATA[state.type].books.length + books.length;
-      document.getElementById('statHearts').textContent = hearts;
+      document.getElementById('statHearts').textContent = calcTotalHearts(state.type, books);
       document.getElementById('statUsers').textContent = users;
     }
   } catch(e) { console.error(e); showToast('오류가 발생했습니다. 다시 시도해 주세요.'); }
