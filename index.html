@@ -7,9 +7,6 @@
   <meta name="description" content="MBTI 성격 유형별 도서 추천 커뮤니티. 같은 유형끼리 책을 추천하고 이야기해요.">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=Noto+Sans+KR:wght@300;400;500;700;900&display=swap" rel="stylesheet">
-  <!-- Firebase -->
-  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
 <style>
 :root{
   --bg:#F9F9F1;--white:#fff;--dark:#2C2C2C;--gray:#888;--light:#F0F0E8;
@@ -231,6 +228,7 @@ img{max-width:100%}
 
 /* ── SEARCH ── */
 .search-row{display:flex;gap:10px;margin-bottom:16px}
+.comm-search-row{display:flex;gap:10px;margin-bottom:14px}
 .s-input{
   flex:1;padding:13px 18px;border:2px solid var(--light);border-radius:var(--radius-xl);
   font-family:inherit;font-size:.93rem;outline:none;background:var(--white);transition:border-color .2s;
@@ -448,21 +446,6 @@ img{max-width:100%}
 <!-- Toast -->
 <div class="toast" id="toast"></div>
 
-<script>
-/* ══════════════════════════════════════════
-   FIREBASE CONFIG  — paste your config here
-   ══════════════════════════════════════════ */
-const FIREBASE_CONFIG = {
-  apiKey:            "여기에_apiKey",
-  authDomain:        "여기에_authDomain",
-  projectId:         "여기에_projectId",
-  storageBucket:     "여기에_storageBucket",
-  messagingSenderId: "여기에_messagingSenderId",
-  appId:             "여기에_appId"
-};
-const FB_READY = !FIREBASE_CONFIG.apiKey.includes('여기에');
-</script>
-
 <!-- chars.js (캐릭터 SVG) -->
 <script src="js/chars.js"></script>
 <!-- data.js (MBTI data) -->
@@ -470,73 +453,42 @@ const FB_READY = !FIREBASE_CONFIG.apiKey.includes('여기에');
 
 <script>
 /* ══════════════════════════════════════════
-   FIREBASE / DB
+   DB — localStorage only
    ══════════════════════════════════════════ */
-let db = null;
-function initDB() {
-  if (!FB_READY) return;
-  try {
-    firebase.initializeApp(FIREBASE_CONFIG);
-    db = firebase.firestore();
-    console.log('✅ Firestore 연결됨');
-  } catch(e) { console.warn('Firebase 오류:', e); }
-}
-initDB();
-
 async function addRec(type, book, review) {
   const rec = { title:book.title||'', author:book.author||'', isbn:book.isbn||'', cover:book.cover||'',
     publisher:book.publisher||'', review:review||'', hearts:0, userKey:getUserKey(),
-    createdAt:db?firebase.firestore.FieldValue.serverTimestamp():new Date().toISOString() };
-  if (!db) { const l=lsGet('recs_'+type,[]); l.unshift({...rec,id:Date.now()+''}); lsSet('recs_'+type,l); return; }
-  await db.collection('recs').doc(type).collection('books').add(rec);
+    createdAt:new Date().toISOString() };
+  const l=lsGet('recs_'+type,[]); l.unshift({...rec,id:Date.now()+''}); lsSet('recs_'+type,l);
 }
 
 function subscribeRecs(type, cb) {
-  if (!db) { cb(lsGet('recs_'+type,[])); return ()=>{}; }
-  return db.collection('recs').doc(type).collection('books')
-    .orderBy('createdAt','desc').limit(60)
-    .onSnapshot(s=>cb(s.docs.map(d=>({id:d.id,...d.data()}))), ()=>cb([]));
+  cb(lsGet('recs_'+type,[]));
+  return ()=>{};
 }
 
 async function toggleRecHeart(type, docId, hearted) {
   const lk='ht_r_'+type+'_'+docId;
-  if (!db) {
-    const nowHearted = !hearted;
-    lsSet(lk, nowHearted);
-    // recs 배열의 hearts 카운트도 업데이트
-    const recs = lsGet('recs_'+type, []);
-    const rec = recs.find(r => r.id === docId);
-    if (rec) {
-      rec.hearts = Math.max(0, (rec.hearts||0) + (nowHearted ? 1 : -1));
-      lsSet('recs_'+type, recs);
-    }
-    return nowHearted;
+  const nowHearted = !hearted;
+  lsSet(lk, nowHearted);
+  const recs = lsGet('recs_'+type, []);
+  const rec = recs.find(r => r.id === docId);
+  if (rec) {
+    rec.hearts = Math.max(0, (rec.hearts||0) + (nowHearted ? 1 : -1));
+    lsSet('recs_'+type, recs);
   }
-  const vr=db.collection('votes').doc(getUserKey()+'__r_'+type+'_'+docId);
-  const br=db.collection('recs').doc(type).collection('books').doc(docId);
-  if (hearted) {
-    await vr.delete();
-    await br.update({hearts:firebase.firestore.FieldValue.increment(-1)});
-    lsSet(lk,false); return false;
-  } else {
-    await vr.set({at:firebase.firestore.FieldValue.serverTimestamp()});
-    await br.update({hearts:firebase.firestore.FieldValue.increment(1)});
-    lsSet(lk,true); return true;
-  }
+  return nowHearted;
 }
 
 function subscribeReviews(bkey, cb) {
-  if (!db) { cb(lsGet('rev_'+bkey,[])); return ()=>{}; }
-  return db.collection('reviews').doc(bkey).collection('comments')
-    .orderBy('createdAt','desc').limit(40)
-    .onSnapshot(s=>cb(s.docs.map(d=>({id:d.id,...d.data()}))), ()=>cb([]));
+  cb(lsGet('rev_'+bkey,[]));
+  return ()=>{};
 }
 
 async function addReview(bkey, text, mbti) {
   const r={text,mbti:mbti||'MBTI',userKey:getUserKey(),dateStr:new Date().toLocaleDateString('ko-KR'),
-    createdAt:db?firebase.firestore.FieldValue.serverTimestamp():new Date().toISOString()};
-  if (!db) { const l=lsGet('rev_'+bkey,[]); l.unshift({...r,id:Date.now()+''}); lsSet('rev_'+bkey,l); return; }
-  await db.collection('reviews').doc(bkey).collection('comments').add(r);
+    createdAt:new Date().toISOString()};
+  const l=lsGet('rev_'+bkey,[]); l.unshift({...r,id:Date.now()+''}); lsSet('rev_'+bkey,l);
 }
 
 function bkey(isbn, title) { return (isbn||title||'x').replace(/[^a-zA-Z0-9가-힣]/g,'_').slice(0,80); }
@@ -920,6 +872,10 @@ function renderRoom() {
 
     <!-- community tab -->
     <div id="tab-community" style="display:${state.tab==='community'?'block':'none'}">
+      <div class="comm-search-row">
+        <input class="s-input" id="commSearchInput" placeholder="📖 추천 도서 자연어 검색… (제목·저자·추천글)" onkeydown="if(event.key==='Enter')doCommSearch()" oninput="if(!this.value.trim())resetCommSearch()">
+        <button class="s-btn" onclick="doCommSearch()">검색</button>
+      </div>
       <div id="communityContent"><div class="loader"><span></span><span></span><span></span></div></div>
       <button onclick="switchTab('search')"
         style="display:block;width:100%;padding:14px;border-radius:50px;background:var(--yellow);color:#fff;font-weight:700;font-size:1rem;border:none;cursor:pointer;margin-bottom:28px">
@@ -1043,6 +999,61 @@ function calcTotalHearts(type, communityBooks) {
   return community + curated;
 }
 
+/* ── 커뮤니티 자연어 검색 (TF-IDF 스코어링) ── */
+function _tokenize(text) {
+  return (text||'').toLowerCase()
+    .replace(/[^가-힣ᄀ-ᇿ㄰-㆏a-z0-9\s]/g,' ')
+    .split(/\s+/).filter(t=>t.length>0);
+}
+function _score(doc, queryTokens) {
+  const fields = [doc.title||'', doc.author||'', doc.review||'', doc.publisher||''];
+  const docText = fields.join(' ');
+  const docTokens = _tokenize(docText);
+  if(!docTokens.length) return 0;
+  let score = 0;
+  queryTokens.forEach(qt=>{
+    const tf = docTokens.filter(t=>t.includes(qt)).length / docTokens.length;
+    const titleBonus = _tokenize(doc.title||'').some(t=>t.includes(qt)) ? 2 : 0;
+    const authorBonus = _tokenize(doc.author||'').some(t=>t.includes(qt)) ? 1 : 0;
+    score += (tf * 10) + titleBonus + authorBonus;
+  });
+  return score;
+}
+let _allCommBooks = [];
+function doCommSearch() {
+  const q = (document.getElementById('commSearchInput')?.value||'').trim();
+  if(!q) { resetCommSearch(); return; }
+  const queryTokens = _tokenize(q);
+  if(!queryTokens.length) return;
+  const books = lsGet('recs_'+state.type, []);
+  _allCommBooks = books;
+  const scored = books
+    .map(b=>({b, s:_score(b, queryTokens)}))
+    .filter(x=>x.s>0)
+    .sort((a,z)=>z.s-a.s)
+    .map(x=>x.b);
+  const wrap = document.getElementById('communityContent');
+  if(!wrap) return;
+  if(!scored.length){
+    wrap.innerHTML=`<div class="empty-box"><div class="empty-icon">🔍</div><div class="empty-text">"${q}"에 해당하는 추천 도서가 없어요.</div></div>`;
+    return;
+  }
+  const grid=document.createElement('div');
+  grid.className='book-grid';
+  scored.forEach((b,i)=>{
+    const card=makeCard(b,'user',b.id||String(i));
+    grid.appendChild(card);
+    if(b.cover){const img=card.querySelector('img.cover-img');if(img)img.src=b.cover;}
+    else fetchCover(card.querySelector('.cover-wrap'),b.isbn,b.title);
+  });
+  wrap.innerHTML=`<div style="font-size:.82rem;color:var(--gray);margin-bottom:10px">"${q}" 검색 결과 ${scored.length}건</div>`;
+  wrap.appendChild(grid);
+}
+function resetCommSearch() {
+  const books = _allCommBooks.length ? _allCommBooks : lsGet('recs_'+state.type, []);
+  renderCommunity(books);
+}
+
 async function handleHeart(btn) {
   const hk=btn.dataset.hk;
   const hearted=btn.classList.contains('hearted');
@@ -1153,15 +1164,12 @@ async function submitRec() {
     document.getElementById('srchResults').innerHTML='';
     document.getElementById('srchInput').value='';
     switchTab('community');
-    // localStorage 모드: onSnapshot이 없으므로 추가 후 수동 갱신
-    if (!db) {
-      const books = lsGet('recs_'+state.type, []);
-      renderCommunity(books);
-      const users = new Set(books.map(b=>b.userKey)).size;
-      document.getElementById('statBooks').textContent = MBTI_DATA[state.type].books.length + books.length;
-      document.getElementById('statHearts').textContent = calcTotalHearts(state.type, books);
-      document.getElementById('statUsers').textContent = users;
-    }
+    const books = lsGet('recs_'+state.type, []);
+    renderCommunity(books);
+    const users = new Set(books.map(b=>b.userKey)).size;
+    document.getElementById('statBooks').textContent = MBTI_DATA[state.type].books.length + books.length;
+    document.getElementById('statHearts').textContent = calcTotalHearts(state.type, books);
+    document.getElementById('statUsers').textContent = users;
   } catch(e) { console.error(e); showToast('오류가 발생했습니다. 다시 시도해 주세요.'); }
   finally { btn.disabled=false;btn.textContent='📤 커뮤니티에 추천하기'; }
 }
