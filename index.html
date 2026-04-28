@@ -258,6 +258,10 @@ img{max-width:100%}
   transition:background .2s;
 }
 .add-btn:hover{background:var(--yellow-d)}.add-btn:disabled{background:#C8E6C9;cursor:default}
+.srch-pager{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;margin-top:14px;padding-top:10px;border-top:1px solid var(--light)}
+.srch-page-btn{width:34px;height:34px;border-radius:8px;border:1.5px solid var(--light);background:var(--white);font-size:.85rem;font-weight:700;cursor:pointer;color:var(--gray);transition:all .15s}
+.srch-page-btn:hover{border-color:var(--yellow);color:var(--yellow-d)}
+.srch-page-btn.active{background:var(--yellow);border-color:var(--yellow);color:var(--white)}
 
 /* ── REC FORM ── */
 .rec-form{
@@ -551,7 +555,7 @@ function aladinSearch(q) {
         link:b.link||'',desc:b.description||'',source:'aladin'})));
     };
     const s=document.createElement('script');
-    s.src=`https://www.aladin.co.kr/ttb/api/ItemSearch.aspx?ttbkey=${ALADIN_KEY}&Query=${encodeURIComponent(q)}&QueryType=Keyword&MaxResults=10&start=1&SearchTarget=Book&output=js&Version=20131101&CallBack=${cb}`;
+    s.src=`https://www.aladin.co.kr/ttb/api/ItemSearch.aspx?ttbkey=${ALADIN_KEY}&Query=${encodeURIComponent(q)}&QueryType=Keyword&MaxResults=30&start=1&SearchTarget=Book&output=js&Version=20131101&CallBack=${cb}`;
     s.onerror=()=>{if(!done)res([])};
     document.head.appendChild(s);
     setTimeout(()=>{if(!done){done=true;res([])}},7000);
@@ -560,7 +564,7 @@ function aladinSearch(q) {
 
 async function googleSearch(q) {
   try {
-    const r=await fetch(`https://www.googleapis.com/books/v1/volumes?q=${encodeURIComponent(q)}&langRestrict=ko&maxResults=8`);
+    const r=await fetch(`https://www.googleapis.com/books/v1/volumes?q=${encodeURIComponent(q)}&langRestrict=ko&maxResults=20`);
     const d=await r.json();
     return (d.items||[]).map(v=>{
       const i=v.volumeInfo;
@@ -1062,15 +1066,39 @@ async function handleHeart(btn) {
   } finally { btn.disabled=false; }
 }
 
+let _srchBooks=[], _srchPage=0;
+const SRCH_PER_PAGE=8;
+
 async function doSearch() {
   const q=document.getElementById('srchInput')?.value.trim();
   if(!q)return;
   const res=document.getElementById('srchResults');
   res.innerHTML='<div class="loader"><span></span><span></span><span></span></div>';
-  const books=await searchBooks(q);
+  _srchBooks=await searchBooks(q);
+  _srchPage=0;
+  renderSearchPage();
+}
+
+function renderSearchPage() {
+  const res=document.getElementById('srchResults');
   res.innerHTML='';
-  if(!books.length){res.innerHTML='<p style="text-align:center;color:#aaa;padding:20px">검색 결과가 없습니다.</p>';return;}
-  books.slice(0,8).forEach(b=>{
+  if(!_srchBooks.length){
+    res.innerHTML='<p style="text-align:center;color:#aaa;padding:20px">검색 결과가 없습니다.</p>';
+    return;
+  }
+  const total=_srchBooks.length;
+  const totalPages=Math.ceil(total/SRCH_PER_PAGE);
+  const start=_srchPage*SRCH_PER_PAGE;
+  const pageBooks=_srchBooks.slice(start,start+SRCH_PER_PAGE);
+
+  // 결과 수 표시
+  const info=document.createElement('p');
+  info.style.cssText='font-size:.8rem;color:#888;margin-bottom:10px';
+  info.textContent=`검색 결과 ${total}건 중 ${start+1}–${Math.min(start+SRCH_PER_PAGE,total)}건`;
+  res.appendChild(info);
+
+  // 책 목록
+  pageBooks.forEach(b=>{
     const item=document.createElement('div');
     item.className='s-item';
     item.innerHTML=`
@@ -1083,6 +1111,20 @@ async function doSearch() {
       <button class="add-btn" onclick='selectBook(${JSON.stringify(b).replace(/'/g,"&#39;")},this)'>선택</button>`;
     res.appendChild(item);
   });
+
+  // 페이지 번호
+  if(totalPages>1){
+    const pager=document.createElement('div');
+    pager.className='srch-pager';
+    for(let i=0;i<totalPages;i++){
+      const btn=document.createElement('button');
+      btn.className='srch-page-btn'+(i===_srchPage?' active':'');
+      btn.textContent=i+1;
+      btn.onclick=()=>{ _srchPage=i; renderSearchPage(); res.scrollIntoView({behavior:'smooth',block:'start'}); };
+      pager.appendChild(btn);
+    }
+    res.appendChild(pager);
+  }
 }
 
 function selectBook(book, btn) {
