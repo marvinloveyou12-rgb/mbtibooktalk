@@ -498,16 +498,19 @@ function bkey(isbn, title) { return (isbn||title||'x').replace(/[^a-zA-Z0-9가-�
    ══════════════════════════════════════════ */
 const ALADIN_KEY = 'ttbpopi07062229002';
 
-function aladinSearch(q) {
+function aladinSearch(q, queryType, maxResults) {
+  queryType = queryType || 'Keyword';
+  maxResults = maxResults || 50;
   return new Promise(res => {
-    const cb='al_'+Date.now(); let done=false;
+    const cb='al_'+queryType.slice(0,1)+'_'+Date.now()+'_'+Math.random().toString(36).slice(2,6);
+    let done=false;
     window[cb]=d=>{done=true;delete window[cb];
       res((d.item||[]).map(b=>({title:b.title,author:b.author,publisher:b.publisher||'',
         isbn:b.isbn13||b.isbn||'',cover:(b.cover||'').replace('coversum','cover200'),
         link:b.link||'',desc:b.description||'',source:'aladin'})));
     };
     const s=document.createElement('script');
-    s.src=`https://www.aladin.co.kr/ttb/api/ItemSearch.aspx?ttbkey=${ALADIN_KEY}&Query=${encodeURIComponent(q)}&QueryType=Keyword&MaxResults=30&start=1&SearchTarget=Book&output=js&Version=20131101&CallBack=${cb}`;
+    s.src=`https://www.aladin.co.kr/ttb/api/ItemSearch.aspx?ttbkey=${ALADIN_KEY}&Query=${encodeURIComponent(q)}&QueryType=${queryType}&MaxResults=${maxResults}&start=1&SearchTarget=Book&output=js&Version=20131101&CallBack=${cb}`;
     s.onerror=()=>{if(!done)res([])};
     document.head.appendChild(s);
     setTimeout(()=>{if(!done){done=true;res([])}},7000);
@@ -516,7 +519,7 @@ function aladinSearch(q) {
 
 async function googleSearch(q) {
   try {
-    const r=await fetch(`https://www.googleapis.com/books/v1/volumes?q=${encodeURIComponent(q)}&langRestrict=ko&maxResults=20`);
+    const r=await fetch(`https://www.googleapis.com/books/v1/volumes?q=${encodeURIComponent(q)}&langRestrict=ko&maxResults=40`);
     const d=await r.json();
     return (d.items||[]).map(v=>{
       const i=v.volumeInfo;
@@ -528,10 +531,33 @@ async function googleSearch(q) {
   } catch { return []; }
 }
 
+function _bookRelevance(book, q) {
+  const title = (book.title || '').toLowerCase();
+  const author = (book.author || '').toLowerCase();
+  const query = q.toLowerCase().trim();
+  const words = query.split(/\s+/).filter(w => w.length > 0);
+  if (!words.length) return 0;
+  if (title === query) return 1000;
+  if (title.startsWith(query)) return 800;
+  if (title.includes(query)) return 600;
+  const titleMatches = words.filter(w => title.includes(w)).length;
+  const authorMatches = words.filter(w => author.includes(w)).length;
+  return (titleMatches / words.length) * 400 + (authorMatches / words.length) * 100;
+}
+
 async function searchBooks(q) {
-  const [a,g]=await Promise.all([aladinSearch(q),googleSearch(q)]);
-  const seen=new Set(); const out=[];
-  for(const b of [...a,...g]){const k=b.isbn||(b.title+b.author);if(!seen.has(k)){seen.add(k);out.push(b);}}
+  const [aTitle, aKw, g] = await Promise.all([
+    aladinSearch(q, 'Title', 50),
+    aladinSearch(q, 'Keyword', 50),
+    googleSearch(q)
+  ]);
+  const seen = new Set();
+  const out = [];
+  for (const b of [...aTitle, ...aKw, ...g]) {
+    const k = b.isbn || (b.title + b.author);
+    if (!seen.has(k)) { seen.add(k); out.push(b); }
+  }
+  out.sort((a, b) => _bookRelevance(b, q) - _bookRelevance(a, q));
   return out;
 }
 
