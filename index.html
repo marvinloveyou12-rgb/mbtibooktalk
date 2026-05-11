@@ -566,7 +566,10 @@ async function searchBooks(q, filterType) {
     aladinCalls = [aladinSearch(q,'Publisher',1,50), aladinSearch(q,'Publisher',51,50)];
     googleQuery = 'inpublisher:' + q;
   } else {
-    aladinCalls = [aladinSearch(q,'Title',1,50), aladinSearch(q,'Keyword',1,50)];
+    aladinCalls = [
+      aladinSearch(q,'Title',1,50), aladinSearch(q,'Title',51,50),
+      aladinSearch(q,'Keyword',1,50), aladinSearch(q,'Keyword',51,50)
+    ];
     googleQuery = q;
   }
 
@@ -1130,7 +1133,7 @@ async function handleHeart(btn) {
 }
 
 let _srchBooks=[], _srchPage=0, _srchFilter='all', _srchQuery='';
-const SRCH_PER_PAGE=8;
+const SRCH_PER_PAGE=5;
 
 const FILTER_LABELS = {all:'전체', title:'제목', author:'저자', publisher:'출판사'};
 
