@@ -260,6 +260,12 @@ img{max-width:100%}
 .srch-page-btn{width:34px;height:34px;border-radius:8px;border:1.5px solid var(--light);background:var(--white);font-size:.85rem;font-weight:700;cursor:pointer;color:var(--gray);transition:all .15s}
 .srch-page-btn:hover{border-color:var(--yellow);color:var(--yellow-d)}
 .srch-page-btn.active{background:var(--yellow);border-color:var(--yellow);color:var(--white)}
+.s-filter{
+  padding:13px 10px;border:2px solid var(--light);border-radius:var(--radius-xl);
+  font-family:inherit;font-size:.82rem;outline:none;background:var(--white);
+  color:var(--dark);cursor:pointer;transition:border-color .2s;flex-shrink:0;
+}
+.s-filter:focus{border-color:var(--green)}
 
 /* ── REC FORM ── */
 .rec-form{
@@ -498,8 +504,9 @@ function bkey(isbn, title) { return (isbn||title||'x').replace(/[^a-zA-Z0-9가-�
    ══════════════════════════════════════════ */
 const ALADIN_KEY = 'ttbpopi07062229002';
 
-function aladinSearch(q, queryType, maxResults) {
+function aladinSearch(q, queryType, start, maxResults) {
   queryType = queryType || 'Keyword';
+  start = start || 1;
   maxResults = maxResults || 50;
   return new Promise(res => {
     const cb='al_'+queryType.slice(0,1)+'_'+Date.now()+'_'+Math.random().toString(36).slice(2,6);
@@ -510,7 +517,7 @@ function aladinSearch(q, queryType, maxResults) {
         link:b.link||'',desc:b.description||'',source:'aladin'})));
     };
     const s=document.createElement('script');
-    s.src=`https://www.aladin.co.kr/ttb/api/ItemSearch.aspx?ttbkey=${ALADIN_KEY}&Query=${encodeURIComponent(q)}&QueryType=${queryType}&MaxResults=${maxResults}&start=1&SearchTarget=Book&output=js&Version=20131101&CallBack=${cb}`;
+    s.src=`https://www.aladin.co.kr/ttb/api/ItemSearch.aspx?ttbkey=${ALADIN_KEY}&Query=${encodeURIComponent(q)}&QueryType=${queryType}&MaxResults=${maxResults}&start=${start}&SearchTarget=Book&output=js&Version=20131101&CallBack=${cb}`;
     s.onerror=()=>{if(!done)res([])};
     document.head.appendChild(s);
     setTimeout(()=>{if(!done){done=true;res([])}},7000);
@@ -545,15 +552,28 @@ function _bookRelevance(book, q) {
   return (titleMatches / words.length) * 400 + (authorMatches / words.length) * 100;
 }
 
-async function searchBooks(q) {
-  const [aTitle, aKw, g] = await Promise.all([
-    aladinSearch(q, 'Title', 50),
-    aladinSearch(q, 'Keyword', 50),
-    googleSearch(q)
-  ]);
+async function searchBooks(q, filterType) {
+  filterType = filterType || 'all';
+  let aladinCalls, googleQuery;
+
+  if (filterType === 'title') {
+    aladinCalls = [aladinSearch(q,'Title',1,50), aladinSearch(q,'Title',51,50)];
+    googleQuery = 'intitle:' + q;
+  } else if (filterType === 'author') {
+    aladinCalls = [aladinSearch(q,'Author',1,50), aladinSearch(q,'Author',51,50)];
+    googleQuery = 'inauthor:' + q;
+  } else if (filterType === 'publisher') {
+    aladinCalls = [aladinSearch(q,'Publisher',1,50), aladinSearch(q,'Publisher',51,50)];
+    googleQuery = 'inpublisher:' + q;
+  } else {
+    aladinCalls = [aladinSearch(q,'Title',1,50), aladinSearch(q,'Keyword',1,50)];
+    googleQuery = q;
+  }
+
+  const results = await Promise.all([...aladinCalls, googleSearch(googleQuery)]);
   const seen = new Set();
   const out = [];
-  for (const b of [...aTitle, ...aKw, ...g]) {
+  for (const b of results.flat()) {
     const k = b.isbn || (b.title + b.author);
     if (!seen.has(k)) { seen.add(k); out.push(b); }
   }
@@ -916,7 +936,13 @@ function renderRoom() {
         검색 후 한줄평을 남기면 커뮤니티 방에 실시간으로 공유됩니다.
       </p>
       <div class="search-row">
-        <input class="s-input" id="srchInput" placeholder="책 제목, 저자 검색…" onkeydown="if(event.key==='Enter')doSearch()">
+        <select class="s-filter" id="srchFilter" onchange="updateSearchPlaceholder()">
+          <option value="all">전체</option>
+          <option value="title">제목</option>
+          <option value="author">저자</option>
+          <option value="publisher">출판사</option>
+        </select>
+        <input class="s-input" id="srchInput" placeholder="책 제목, 저자, 출판사 검색…" onkeydown="if(event.key==='Enter')doSearch()">
         <button class="s-btn" onclick="doSearch()">검색</button>
       </div>
       <div id="srchResults"></div>
@@ -1103,15 +1129,27 @@ async function handleHeart(btn) {
   } finally { btn.disabled=false; }
 }
 
-let _srchBooks=[], _srchPage=0;
+let _srchBooks=[], _srchPage=0, _srchFilter='all', _srchQuery='';
 const SRCH_PER_PAGE=8;
+
+const FILTER_LABELS = {all:'전체', title:'제목', author:'저자', publisher:'출판사'};
+
+function updateSearchPlaceholder() {
+  const filter = document.getElementById('srchFilter')?.value || 'all';
+  const ph = {all:'책 제목, 저자, 출판사 검색…', title:'책 제목으로 검색…', author:'저자명으로 검색…', publisher:'출판사명으로 검색…'};
+  const input = document.getElementById('srchInput');
+  if (input) input.placeholder = ph[filter] || ph.all;
+}
 
 async function doSearch() {
   const q=document.getElementById('srchInput')?.value.trim();
+  const filter=document.getElementById('srchFilter')?.value||'all';
   if(!q)return;
   const res=document.getElementById('srchResults');
   res.innerHTML='<div class="loader"><span></span><span></span><span></span></div>';
-  _srchBooks=await searchBooks(q);
+  _srchFilter=filter;
+  _srchQuery=q;
+  _srchBooks=await searchBooks(q, filter);
   _srchPage=0;
   renderSearchPage();
 }
@@ -1131,7 +1169,8 @@ function renderSearchPage() {
   // 결과 수 표시
   const info=document.createElement('p');
   info.style.cssText='font-size:.8rem;color:#888;margin-bottom:10px';
-  info.textContent=`검색 결과 ${total}건 중 ${start+1}–${Math.min(start+SRCH_PER_PAGE,total)}건`;
+  const filterLabel = FILTER_LABELS[_srchFilter] || '전체';
+  info.textContent=`"${_srchQuery}" ${filterLabel} 검색 결과 ${total}건 중 ${start+1}–${Math.min(start+SRCH_PER_PAGE,total)}건`;
   res.appendChild(info);
 
   // 책 목록
