@@ -445,6 +445,43 @@ img{max-width:100%}
   font-weight:700;font-size:.88rem;cursor:pointer;width:100%;margin-bottom:28px;transition:all .2s;
 }
 .back-btn:hover{border-color:var(--green);color:var(--green-d)}
+
+/* ── PHOTO TAB ── */
+.photo-mode-switch{
+  display:inline-flex;border-radius:50px;overflow:hidden;
+  border:2px solid var(--light);background:var(--white);
+}
+.photo-mode-btn{
+  padding:9px 22px;font-size:.85rem;font-weight:700;color:var(--gray);
+  border:none;background:none;cursor:pointer;transition:all .18s;
+}
+.photo-mode-btn.active{background:var(--green);color:var(--white)}
+.necut-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.upload-cell{
+  aspect-ratio:1;border-radius:12px;border:2.5px dashed var(--light);
+  display:flex;align-items:center;justify-content:center;
+  cursor:pointer;overflow:hidden;transition:border-color .2s;background:var(--white);
+  position:relative;
+}
+.upload-cell:hover{border-color:var(--green)}
+.upload-ph{display:flex;flex-direction:column;align-items:center;gap:4px;color:var(--gray)}
+.upload-ph span{font-size:2rem}.upload-ph small{font-size:.75rem;font-weight:700}
+.book-select-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:4px}
+.book-select-card{
+  background:var(--white);border-radius:12px;overflow:hidden;cursor:pointer;
+  box-shadow:var(--shadow-sm);border:2.5px solid transparent;transition:all .18s;
+}
+.book-select-card.selected{border-color:var(--green);box-shadow:0 0 0 3px rgba(141,196,135,.3)}
+.bsc-cover{width:100%;aspect-ratio:3/4;object-fit:cover;display:block;background:var(--light)}
+.bsc-ph{width:100%;aspect-ratio:3/4;display:flex;align-items:center;justify-content:center;font-size:2rem;background:var(--light)}
+.bsc-title{font-size:.72rem;font-weight:700;padding:6px 8px;text-align:center;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.compose-btn{
+  width:100%;padding:13px;background:var(--green);color:var(--white);border-radius:var(--radius-xl);
+  font-weight:700;font-size:.95rem;transition:background .2s;border:none;cursor:pointer;
+}
+.compose-btn:hover{background:var(--green-d)}
+.photo-preview-wrap{margin-top:22px;background:var(--white);border-radius:var(--radius-lg);padding:18px;box-shadow:var(--shadow-sm)}
 </style>
 </head>
 <body>
@@ -935,6 +972,7 @@ function renderRoom() {
     <div class="tab${state.tab==='curated'?' active':''}" onclick="switchTab('curated')">📚 큐레이션</div>
     <div class="tab${state.tab==='community'?' active':''}" onclick="switchTab('community')">👥 커뮤니티</div>
     <div class="tab${state.tab==='search'?' active':''}" onclick="switchTab('search')">+ 추천하기</div>
+    <div class="tab${state.tab==='photo'?' active':''}" onclick="switchTab('photo')">📸 인증샷</div>
   </div>
 
   <div class="inner">
@@ -999,6 +1037,51 @@ function renderRoom() {
         <button class="form-sub" id="recSubBtn" onclick="submitRec()">📤 커뮤니티에 추천하기</button>
       </div>
     </div>
+
+    <!-- photo tab -->
+    <div id="tab-photo" style="display:${state.tab==='photo'?'block':'none'}">
+      <div style="text-align:center;margin-bottom:16px">
+        <div class="photo-mode-switch">
+          <button class="photo-mode-btn active" id="pmBtnNecut" onclick="switchPhotoMode('necut')">📷 MBTI 네컷</button>
+          <button class="photo-mode-btn" id="pmBtnBook" onclick="switchPhotoMode('book')">📚 도서 4컷</button>
+        </div>
+      </div>
+
+      <!-- MBTI 네컷 모드 -->
+      <div id="photoModeNecut">
+        <p style="font-size:.83rem;color:var(--gray);margin-bottom:14px;line-height:1.55">
+          📷 <strong style="color:${d.color}">${state.type} ${d.name}</strong> 유형의 MBTI 네컷 인증샷을 만들어보세요!<br>
+          사진 4장을 업로드하면 ${d.emoji} 프레임의 포토부스 이미지로 합성됩니다.
+        </p>
+        <div class="necut-grid">
+          ${[0,1,2,3].map(i=>`<label class="upload-cell" for="photoInput${i}">
+            <input type="file" id="photoInput${i}" accept="image/*" style="display:none" onchange="handlePhotoUpload(${i},this)">
+            <div class="upload-ph" id="uploadPh${i}"><span>📷</span><small>사진 ${i+1}</small></div>
+            <img id="uploadImg${i}" style="display:none;width:100%;height:100%;object-fit:cover">
+          </label>`).join('')}
+        </div>
+        <button class="compose-btn" style="margin-top:14px" onclick="triggerCompose('necut')">✨ 네컷 이미지 합성</button>
+      </div>
+
+      <!-- 도서 4컷 모드 -->
+      <div id="photoModeBook" style="display:none">
+        <p style="font-size:.83rem;color:var(--gray);margin-bottom:14px;line-height:1.55">
+          📚 <strong style="color:${d.color}">${state.type} 큐레이션 도서</strong> 중 최대 4권을 골라 커버 이미지를 합성해보세요!
+        </p>
+        <div class="book-select-grid" id="bookSelectGrid"></div>
+        <button class="compose-btn" style="margin-top:14px" onclick="triggerCompose('book')">✨ 도서 4컷 합성</button>
+      </div>
+
+      <!-- 완성된 이미지 미리보기 -->
+      <div id="photoPreview" style="display:none" class="photo-preview-wrap">
+        <div style="font-weight:700;font-size:.95rem;margin-bottom:12px;text-align:center">✨ 완성된 이미지</div>
+        <canvas id="photoCanvas" style="width:100%;border-radius:12px;display:block"></canvas>
+        <div style="display:flex;gap:10px;margin-top:14px">
+          <button class="compose-btn" style="background:#5C6BC0" onclick="downloadComposed()">⬇️ 저장하기</button>
+          <button class="compose-btn" style="background:var(--orange)" onclick="shareComposed()">📤 공유하기</button>
+        </div>
+      </div>
+    </div>
   </div>`;
 
   // render curated — htc_* 누적 하트순 정렬
@@ -1030,13 +1113,14 @@ function switchType(type) {
 }
 function switchTab(name) {
   state.tab=name;
-  ['curated','community','search'].forEach(t=>{
+  ['curated','community','search','photo'].forEach(t=>{
     const el=document.getElementById('tab-'+t);
     if(el)el.style.display=t===name?'block':'none';
   });
   document.querySelectorAll('.tab').forEach((t,i)=>{
-    t.classList.toggle('active',['curated','community','search'][i]===name);
+    t.classList.toggle('active',['curated','community','search','photo'][i]===name);
   });
+  if(name==='photo'&&window._composeMode==='book') renderBookSelectGrid();
   window.scrollTo(0,0);
 }
 
@@ -1550,6 +1634,275 @@ function showToast(msg) {
   const t=document.getElementById('toast');
   t.textContent=msg;t.classList.add('show');
   setTimeout(()=>t.classList.remove('show'),2400);
+}
+
+/* ══════════════════════════════════════════
+   PHOTO SHARE FEATURE
+   ══════════════════════════════════════════ */
+window._necutPhotos=[null,null,null,null];
+window._selectedBookIdxs=new Set([0,1,2,3]);
+window._composeMode='necut';
+
+function switchPhotoMode(mode){
+  window._composeMode=mode;
+  document.getElementById('photoModeNecut').style.display=mode==='necut'?'block':'none';
+  document.getElementById('photoModeBook').style.display=mode==='book'?'block':'none';
+  document.getElementById('photoPreview').style.display='none';
+  document.getElementById('pmBtnNecut').classList.toggle('active',mode==='necut');
+  document.getElementById('pmBtnBook').classList.toggle('active',mode==='book');
+  if(mode==='book') renderBookSelectGrid();
+}
+
+function renderBookSelectGrid(){
+  const grid=document.getElementById('bookSelectGrid');
+  if(!grid)return;
+  const books=MBTI_DATA[state.type]?.books||[];
+  // default select first 4
+  if(window._selectedBookIdxs.size===0||[...window._selectedBookIdxs].some(i=>i>=books.length)){
+    window._selectedBookIdxs=new Set([...Array(Math.min(4,books.length)).keys()]);
+  }
+  grid.innerHTML=books.map((b,i)=>{
+    const sel=window._selectedBookIdxs.has(i);
+    return `<div class="book-select-card${sel?' selected':''}" id="bsc-${i}" onclick="toggleBookSel(${i})">
+      <div class="bsc-ph" id="bsc-cover-${i}">📚</div>
+      <div class="bsc-title">${b.title}</div>
+    </div>`;
+  }).join('');
+  books.forEach((b,i)=>{
+    getCover(b.query||b.title,b.isbn||'').then(url=>{
+      if(!url)return;
+      const el=document.getElementById('bsc-cover-'+i);
+      if(!el)return;
+      el.innerHTML=`<img class="bsc-cover" src="${url}" alt="${b.title}" onerror="this.parentNode.innerHTML='📚'">`;
+      el.style.padding='0';
+    });
+  });
+}
+
+function toggleBookSel(idx){
+  if(window._selectedBookIdxs.has(idx)){
+    if(window._selectedBookIdxs.size<=1)return;
+    window._selectedBookIdxs.delete(idx);
+  } else {
+    if(window._selectedBookIdxs.size>=4){
+      const first=window._selectedBookIdxs.values().next().value;
+      window._selectedBookIdxs.delete(first);
+      const fe=document.getElementById('bsc-'+first);
+      if(fe)fe.classList.remove('selected');
+    }
+    window._selectedBookIdxs.add(idx);
+  }
+  const card=document.getElementById('bsc-'+idx);
+  if(card)card.classList.toggle('selected',window._selectedBookIdxs.has(idx));
+}
+
+function handlePhotoUpload(idx,input){
+  const file=input.files[0];
+  if(!file)return;
+  const reader=new FileReader();
+  reader.onload=e=>{
+    window._necutPhotos[idx]=e.target.result;
+    const img=document.getElementById('uploadImg'+idx);
+    const ph=document.getElementById('uploadPh'+idx);
+    if(img){img.src=e.target.result;img.style.display='block';}
+    if(ph)ph.style.display='none';
+  };
+  reader.readAsDataURL(file);
+}
+
+function _loadImgEl(src){
+  return new Promise((res,rej)=>{
+    const img=new Image();
+    img.crossOrigin='anonymous';
+    img.onload=()=>res(img);
+    img.onerror=()=>{
+      const img2=new Image();
+      img2.onload=()=>res(img2);
+      img2.onerror=()=>rej(new Error('img load fail'));
+      img2.src=src+(src.includes('?')?'&':'?')+'_nc='+Date.now();
+    };
+    img.src=src;
+  });
+}
+
+function _roundRectPath(ctx,x,y,w,h,r){
+  ctx.beginPath();
+  ctx.moveTo(x+r,y);
+  ctx.lineTo(x+w-r,y);ctx.arcTo(x+w,y,x+w,y+r,r);
+  ctx.lineTo(x+w,y+h-r);ctx.arcTo(x+w,y+h,x+w-r,y+h,r);
+  ctx.lineTo(x+r,y+h);ctx.arcTo(x,y+h,x,y+h-r,r);
+  ctx.lineTo(x,y+r);ctx.arcTo(x,y,x+r,y,r);
+  ctx.closePath();
+}
+
+function _wrapText(ctx,text,x,y,maxW,lineH){
+  let line='';
+  for(let n=0;n<text.length;n++){
+    const t=line+text[n];
+    if(ctx.measureText(t).width>maxW&&n>0){ctx.fillText(line,x,y);line=text[n];y+=lineH;}
+    else line=t;
+  }
+  ctx.fillText(line,x,y);
+  return y;
+}
+
+async function triggerCompose(mode){
+  document.getElementById('photoPreview').style.display='none';
+  if(mode==='necut') await composeNecut();
+  else await composeBookCovers();
+}
+
+async function composeNecut(){
+  const d=MBTI_DATA[state.type];
+  const SZ=800,CELL=SZ/2,HDR=80,FTR=70;
+  const canvas=document.getElementById('photoCanvas');
+  canvas.width=SZ; canvas.height=SZ+HDR+FTR;
+  const ctx=canvas.getContext('2d');
+
+  ctx.fillStyle='#1a1a1a'; ctx.fillRect(0,0,canvas.width,canvas.height);
+
+  // header
+  ctx.fillStyle=d.color; ctx.fillRect(0,0,SZ,HDR);
+  ctx.fillStyle='#fff';
+  ctx.font='bold 26px "Noto Sans KR",sans-serif';
+  ctx.textAlign='center'; ctx.textBaseline='middle';
+  ctx.fillText(`${d.emoji} ${state.type} ${d.name}`,SZ/2,HDR/2);
+
+  const positions=[{x:0,y:HDR},{x:CELL,y:HDR},{x:0,y:HDR+CELL},{x:CELL,y:HDR+CELL}];
+  for(let i=0;i<4;i++){
+    const {x,y}=positions[i];
+    const src=window._necutPhotos[i];
+    if(src){
+      try{
+        const img=await _loadImgEl(src);
+        ctx.save();
+        _roundRectPath(ctx,x+4,y+4,CELL-8,CELL-8,10);
+        ctx.clip();
+        const ratio=Math.max(CELL/img.width,CELL/img.height);
+        const dw=img.width*ratio,dh=img.height*ratio;
+        ctx.drawImage(img,x+(CELL-dw)/2,y+(CELL-dh)/2,dw,dh);
+        ctx.restore();
+      }catch{
+        ctx.fillStyle='#333';
+        _roundRectPath(ctx,x+4,y+4,CELL-8,CELL-8,10); ctx.fill();
+        ctx.fillStyle='#888'; ctx.font='48px sans-serif'; ctx.textAlign='center'; ctx.textBaseline='middle';
+        ctx.fillText('📷',x+CELL/2,y+CELL/2);
+      }
+    } else {
+      ctx.fillStyle='#2a2a2a';
+      _roundRectPath(ctx,x+4,y+4,CELL-8,CELL-8,10); ctx.fill();
+      ctx.fillStyle='#555'; ctx.font='44px sans-serif'; ctx.textAlign='center'; ctx.textBaseline='middle';
+      ctx.fillText('📷',x+CELL/2,y+CELL/2);
+      ctx.fillStyle='#444'; ctx.font='16px "Noto Sans KR",sans-serif';
+      ctx.fillText('사진 '+(i+1),x+CELL/2,y+CELL/2+48);
+    }
+  }
+
+  // dividers
+  ctx.strokeStyle='#1a1a1a'; ctx.lineWidth=8;
+  ctx.beginPath(); ctx.moveTo(CELL,HDR); ctx.lineTo(CELL,HDR+SZ); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(0,HDR+CELL); ctx.lineTo(SZ,HDR+CELL); ctx.stroke();
+
+  // footer
+  ctx.fillStyle=d.color; ctx.fillRect(0,HDR+SZ,SZ,FTR);
+  ctx.fillStyle='#fff'; ctx.font='bold 17px "Noto Sans KR",sans-serif';
+  ctx.textAlign='center'; ctx.textBaseline='middle';
+  ctx.fillText('MBTI Book Talk 📚',SZ/2,HDR+SZ+FTR/2);
+
+  document.getElementById('photoPreview').style.display='block';
+  document.getElementById('photoPreview').scrollIntoView({behavior:'smooth',block:'nearest'});
+}
+
+async function composeBookCovers(){
+  const d=MBTI_DATA[state.type];
+  const books=MBTI_DATA[state.type]?.books||[];
+  const idxs=[...window._selectedBookIdxs].slice(0,4);
+  const selected=idxs.map(i=>books[i]).filter(Boolean);
+  if(!selected.length){showToast('도서를 선택해주세요!');return;}
+
+  const SZ=800,HDR=80,FTR=70;
+  const count=Math.min(selected.length,4);
+  const cols=count<=1?1:2;
+  const rows=Math.ceil(count/cols);
+  const CW=Math.floor(SZ/cols);
+  const CH=Math.round(CW*4/3);
+  const canvas=document.getElementById('photoCanvas');
+  canvas.width=SZ; canvas.height=HDR+rows*CH+FTR;
+  const ctx=canvas.getContext('2d');
+
+  ctx.fillStyle='#F9F9F1'; ctx.fillRect(0,0,canvas.width,canvas.height);
+
+  // header
+  ctx.fillStyle=d.color; ctx.fillRect(0,0,SZ,HDR);
+  ctx.fillStyle='#fff'; ctx.font='bold 24px "Noto Sans KR",sans-serif';
+  ctx.textAlign='center'; ctx.textBaseline='middle';
+  ctx.fillText(`${d.emoji} ${state.type} 추천 도서 4컷`,SZ/2,HDR/2);
+
+  for(let i=0;i<count;i++){
+    const b=selected[i];
+    const col=i%cols, row=Math.floor(i/cols);
+    const x=col*CW, y=HDR+row*CH;
+    let drawn=false;
+    const coverUrl=await getCover(b.query||b.title,b.isbn||'');
+    if(coverUrl){
+      try{
+        const img=await _loadImgEl(coverUrl);
+        ctx.save();
+        _roundRectPath(ctx,x+6,y+6,CW-12,CH-12,14); ctx.clip();
+        const ratio=Math.max(CW/img.width,CH/img.height);
+        const dw=img.width*ratio,dh=img.height*ratio;
+        ctx.drawImage(img,x+(CW-dw)/2,y+(CH-dh)/2,dw,dh);
+        ctx.restore(); drawn=true;
+      }catch{}
+    }
+    if(!drawn){
+      ctx.fillStyle='#EEE';
+      _roundRectPath(ctx,x+6,y+6,CW-12,CH-12,14); ctx.fill();
+      ctx.fillStyle=d.color; ctx.font='bold 14px "Noto Sans KR",sans-serif';
+      ctx.textAlign='center'; ctx.textBaseline='middle';
+      _wrapText(ctx,b.title,x+CW/2,y+CH/2-14,CW-32,22);
+      ctx.fillStyle='#777'; ctx.font='13px "Noto Sans KR",sans-serif';
+      ctx.fillText(b.author||'',x+CW/2,y+CH/2+20);
+    }
+  }
+
+  // dividers
+  ctx.strokeStyle='#fff'; ctx.lineWidth=8;
+  if(cols>1){ctx.beginPath();ctx.moveTo(CW,HDR);ctx.lineTo(CW,HDR+rows*CH);ctx.stroke();}
+  for(let r=1;r<rows;r++){ctx.beginPath();ctx.moveTo(0,HDR+r*CH);ctx.lineTo(SZ,HDR+r*CH);ctx.stroke();}
+
+  // footer
+  ctx.fillStyle=d.color; ctx.fillRect(0,HDR+rows*CH,SZ,FTR);
+  ctx.fillStyle='#fff'; ctx.font='bold 17px "Noto Sans KR",sans-serif';
+  ctx.textAlign='center'; ctx.textBaseline='middle';
+  ctx.fillText('MBTI Book Talk 📚',SZ/2,HDR+rows*CH+FTR/2);
+
+  document.getElementById('photoPreview').style.display='block';
+  document.getElementById('photoPreview').scrollIntoView({behavior:'smooth',block:'nearest'});
+}
+
+function downloadComposed(){
+  const canvas=document.getElementById('photoCanvas');
+  const a=document.createElement('a');
+  a.download=`MBTI_${state.type}_${window._composeMode==='necut'?'네컷':'도서4컷'}.jpg`;
+  a.href=canvas.toDataURL('image/jpeg',0.92);
+  a.click();
+}
+
+function shareComposed(){
+  const canvas=document.getElementById('photoCanvas');
+  if(navigator.share && canvas.toBlob){
+    canvas.toBlob(blob=>{
+      if(!blob){downloadComposed();return;}
+      const file=new File([blob],`MBTI_${state.type}.jpg`,{type:'image/jpeg'});
+      navigator.share({title:`MBTI Book Talk — ${state.type}`,files:[file]})
+        .then(()=>showToast('공유했어요! 📸'))
+        .catch(()=>downloadComposed());
+    },'image/jpeg',0.92);
+  } else {
+    downloadComposed();
+    showToast('이미지를 저장했어요! 직접 공유해 주세요 📸');
+  }
 }
 
 /* ══════════════════════════════════════════
