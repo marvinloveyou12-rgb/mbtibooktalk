@@ -242,7 +242,7 @@ INFP: `<svg viewBox="0 0 100 130" xmlns="http://www.w3.org/2000/svg">
 </svg>`,
 
 ENFJ: `<svg viewBox="0 0 100 130" xmlns="http://www.w3.org/2000/svg">
-<rect width="100" height="130" rx="14" fill="#E0F7F4"/>
+<rect width="100" height="130" rx="14" fill="#E8F5E9"/>
 <!-- coral top -->
 <path d="M13,130 L13,92 Q22,85 42,82 Q50,88 58,82 Q78,85 87,92 L87,130Z" fill="#E05A4E"/>
 <!-- collar detail -->
@@ -493,7 +493,7 @@ ESFJ: `<svg viewBox="0 0 100 130" xmlns="http://www.w3.org/2000/svg">
 /* ─── SP 탐험가 그룹 (따뜻한 계열 배경) ─── */
 
 ISTP: `<svg viewBox="0 0 100 130" xmlns="http://www.w3.org/2000/svg">
-<rect width="100" height="130" rx="14" fill="#FFF0E6"/>
+<rect width="100" height="130" rx="14" fill="#FFEBEE"/>
 <!-- dark hoodie -->
 <path d="M13,130 L13,92 Q22,84 42,80 Q50,88 58,80 Q78,84 87,92 L87,130Z" fill="#484858"/>
 <!-- hoodie pocket/detail -->
@@ -529,7 +529,7 @@ ISTP: `<svg viewBox="0 0 100 130" xmlns="http://www.w3.org/2000/svg">
 </svg>`,
 
 ISFP: `<svg viewBox="0 0 100 130" xmlns="http://www.w3.org/2000/svg">
-<rect width="100" height="130" rx="14" fill="#FFF4E0"/>
+<rect width="100" height="130" rx="14" fill="#FFE5E5"/>
 <!-- artistic apron -->
 <path d="M13,130 L13,92 Q22,85 42,82 Q50,88 58,82 Q78,85 87,92 L87,130Z" fill="#6B9E78"/>
 <!-- apron bib -->
@@ -573,7 +573,7 @@ ISFP: `<svg viewBox="0 0 100 130" xmlns="http://www.w3.org/2000/svg">
 </svg>`,
 
 ESTP: `<svg viewBox="0 0 100 130" xmlns="http://www.w3.org/2000/svg">
-<rect width="100" height="130" rx="14" fill="#FFE8D6"/>
+<rect width="100" height="130" rx="14" fill="#FFDADA"/>
 <!-- olive casual jacket -->
 <path d="M13,130 L13,92 Q22,84 44,80 L44,82 Q50,87 56,82 L56,80 Q78,84 87,92 L87,130Z" fill="#6B7A3A"/>
 <!-- inner shirt -->
@@ -613,7 +613,7 @@ ESTP: `<svg viewBox="0 0 100 130" xmlns="http://www.w3.org/2000/svg">
 </svg>`,
 
 ESFP: `<svg viewBox="0 0 100 130" xmlns="http://www.w3.org/2000/svg">
-<rect width="100" height="130" rx="14" fill="#FFE8E8"/>
+<rect width="100" height="130" rx="14" fill="#FFCDD2"/>
 <!-- bright teal/turquoise top -->
 <path d="M13,130 L13,92 Q22,85 42,82 Q50,88 58,82 Q78,85 87,92 L87,130Z" fill="#26B8B0"/>
 <!-- collar detail -->

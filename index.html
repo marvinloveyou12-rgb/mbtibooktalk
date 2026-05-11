@@ -136,6 +136,20 @@ img{max-width:100%}
   box-shadow:var(--shadow-sm);transition:transform .15s,box-shadow .15s;
 }
 .book-card:hover{transform:translateY(-4px);box-shadow:var(--shadow)}
+.rank-badge{
+  position:absolute;top:6px;left:6px;width:30px;height:30px;border-radius:50%;
+  display:flex;align-items:center;justify-content:center;
+  font-size:.75rem;font-weight:900;z-index:2;
+}
+.rank-badge.gold{background:linear-gradient(135deg,#FFD700,#FFA500);color:white;box-shadow:0 2px 8px rgba(255,184,0,.5)}
+.rank-badge.silver{background:linear-gradient(135deg,#C0C0C0,#A0A0A0);color:white;box-shadow:0 2px 8px rgba(160,160,160,.4)}
+.rank-badge.bronze{background:linear-gradient(135deg,#CD7F32,#A0522D);color:white;box-shadow:0 2px 8px rgba(160,80,30,.4)}
+.rank-badge.normal{background:rgba(0,0,0,.5);color:white}
+.type-participants{
+  display:inline-flex;align-items:center;gap:3px;
+  margin:0 auto 7px;padding:2px 8px;border-radius:12px;
+  font-size:.67rem;font-weight:700;line-height:1.3;
+}
 .cover-wrap{width:100%;aspect-ratio:3/4;background:var(--light);overflow:hidden;position:relative}
 .cover-img{width:100%;height:100%;object-fit:cover;display:block}
 .cover-ph{
@@ -466,6 +480,7 @@ async function addRec(type, book, review) {
     publisher:book.publisher||'', review:review||'', hearts:0, userKey:getUserKey(),
     createdAt:new Date().toISOString() };
   const l=lsGet('recs_'+type,[]); l.unshift({...rec,id:Date.now()+''}); lsSet('recs_'+type,l);
+  recordParticipation(type);
 }
 
 function subscribeRecs(type, cb) {
@@ -823,6 +838,7 @@ function renderSelect() {
     <div class="hero-icon">👥</div>
     <div class="hero-title">내 MBTI 유형 선택</div>
     <div class="hero-sub">나의 유형을 선택하면<br>같은 유형 친구들의 추천 도서를 볼 수 있어요!</div>
+    <div style="font-size:.82rem;opacity:.9;margin-top:8px">🌟 전체 참가자 ${Object.keys(MBTI_DATA).reduce((s,t)=>s+getParticipantCount(t),0)}명</div>
   </div>
   <div class="inner">
     <div class="sel-preview" id="selPreview">
@@ -839,6 +855,7 @@ function renderSelect() {
         <div class="type-card" id="tc-${t}" style="--sel-c:${d.color}" onclick="pickType('${t}')">
           <div class="type-code" style="color:${d.color}">${t}</div>
           <div class="type-name">${d.name}</div>
+          ${_participantBadge(t)}
           <div class="type-char">${(typeof CHARS!=='undefined'&&CHARS[t])||`<div style="font-size:2rem;padding:12px 0">${d.emoji}</div>`}</div>
         </div>`;}).join('')}
       </div>
@@ -962,10 +979,13 @@ function renderRoom() {
     </div>
   </div>`;
 
-  // render curated
+  // render curated — htc_* 누적 하트순 정렬
   const grid=document.getElementById('curatedGrid');
-  MBTI_DATA[state.type].books.forEach(b=>{
-    const card=makeCard(b,'curated',null);
+  const sortedCurated=[...MBTI_DATA[state.type].books]
+    .map((b,i)=>({b,i,cnt:lsGet('htc_'+(b.isbn||b.title||''),0)}))
+    .sort((a,z)=>z.cnt-a.cnt||a.i-z.i);
+  sortedCurated.forEach(({b},rank)=>{
+    const card=makeCard(b,'curated',null,rank);
     grid.appendChild(card);
     fetchCover(card.querySelector('.cover-wrap'),b.isbn,b.query||b.title);
   });
@@ -1017,14 +1037,21 @@ function renderCommunity(books) {
   wrap.appendChild(grid);
 }
 
-function makeCard(book, source, recId) {
+function makeCard(book, source, recId, rank) {
   const hk='ht_'+(source==='user'?'r_'+state.type+'_'+(recId||book.isbn||book.title):book.isbn||book.title||'');
   const hearted=lsGet(hk,false);
-  const hearts=book.hearts||0;
+  const hearts=source==='curated'?lsGet('htc_'+(book.isbn||book.title||''),0):(book.hearts||0);
+  let rankHtml='';
+  if(source==='curated'&&rank!=null){
+    const medals=['🥇','🥈','🥉'];
+    const cls=rank<3?['gold','silver','bronze'][rank]:'normal';
+    rankHtml=`<div class="rank-badge ${cls}">${rank<3?medals[rank]:rank+1}</div>`;
+  }
   const card=document.createElement('div');
   card.className='book-card';
   card.innerHTML=`
-    <div class="cover-wrap">
+    <div class="cover-wrap" style="position:relative">
+      ${rankHtml}
       ${book.cover?`<img class="cover-img" src="${book.cover}" alt="${book.title}" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">`:``}
       <div class="cover-ph" ${book.cover?'style="display:none"':''}>📚</div>
     </div>
@@ -1044,12 +1071,11 @@ function makeCard(book, source, recId) {
   return card;
 }
 
-/* 큐레이션 하트(localStorage) + 커뮤니티 하트(recs) 합산 */
+/* 큐레이션 하트(htc_* 누적) + 커뮤니티 하트(recs) 합산 */
 function calcTotalHearts(type, communityBooks) {
   const community = communityBooks.reduce((s,b)=>s+(b.hearts||0), 0);
   const curated = (MBTI_DATA[type]?.books||[]).reduce((s,b)=>{
-    const hk = 'ht_'+(b.isbn||b.title||'');
-    return s + (lsGet(hk, false) ? 1 : 0);
+    return s + lsGet('htc_'+(b.isbn||b.title||''), 0);
   }, 0);
   return community + curated;
 }
@@ -1115,15 +1141,22 @@ async function handleHeart(btn) {
   const countEl=btn.querySelector('.hcnt');
   const count=parseInt(countEl.textContent)||0;
   btn.disabled=true;
+  recordParticipation(state.type);
   try {
     let nowHearted;
     if(btn.dataset.src==='user'&&btn.dataset.doc) {
       nowHearted=await toggleRecHeart(btn.dataset.type,btn.dataset.doc,hearted);
-    } else { nowHearted=!hearted; lsSet(hk,nowHearted); }
+    } else {
+      nowHearted=!hearted;
+      lsSet(hk,nowHearted);
+      if(btn.dataset.src==='curated'){
+        const ck='htc_'+hk.slice(3);
+        lsSet(ck,Math.max(0,lsGet(ck,0)+(nowHearted?1:-1)));
+      }
+    }
     btn.classList.toggle('hearted',nowHearted);
     const newCount = nowHearted ? count+1 : Math.max(0,count-1);
     btn.innerHTML=`${nowHearted?'❤️':'🤍'}<span class="hcnt">${newCount}</span>`;
-    // 총 하트 수: 큐레이션+커뮤니티 정확 재계산
     const statEl=document.getElementById('statHearts');
     if(statEl){
       const commBooks = lsGet('recs_'+state.type, []);
@@ -1261,9 +1294,18 @@ function renderDetail() {
   if(revUnsub){revUnsub();revUnsub=null;}
   const b=state.book||{};
   const bk=bkey(b.isbn,b.title);
-  const localHearted=lsGet('hd_'+bk,false);
-  const localCount=lsGet('hdc_'+bk,0);
-  const d=MBTI_DATA[b.fromType||state.type]||{};
+  const fromType=b.fromType||state.type;
+  const bookKey=b.isbn||b.title||'';
+  const isCurated=(MBTI_DATA[fromType]?.books||[]).some(cb=>(cb.isbn&&cb.isbn===b.isbn)||(cb.title===b.title));
+  let localHearted,localCount;
+  if(isCurated){
+    localHearted=lsGet('ht_'+bookKey,false);
+    localCount=lsGet('htc_'+bookKey,0);
+  } else {
+    localHearted=lsGet('hd_'+bk,false);
+    localCount=lsGet('hdc_'+bk,0);
+  }
+  const d=MBTI_DATA[fromType]||{};
 
   document.getElementById('pg-detail').innerHTML=`
   <div class="detail-hero">
@@ -1272,7 +1314,7 @@ function renderDetail() {
       <div class="detail-title">${b.title||'알 수 없는 책'}</div>
       <div class="detail-author">${b.author||''}</div>
       <div class="detail-pub">${b.publisher||''}</div>
-      <button class="heart-big${localHearted?' hearted':''}" id="heartBig" onclick="toggleDetailHeart('${bk}')">
+      <button class="heart-big${localHearted?' hearted':''}" id="heartBig" onclick="toggleDetailHeart('${bk}',${isCurated},'${bookKey}')">
         ${localHearted?'❤️':'🤍'} <span id="hdCount">${localCount}</span> 하트
       </button>
     </div>
@@ -1379,14 +1421,20 @@ function setCoverDetail(url) {
   document.getElementById('dcPh').style.display='none';
 }
 
-async function toggleDetailHeart(bk) {
+async function toggleDetailHeart(bk, isCurated, bookKey) {
   const btn=document.getElementById('heartBig');
   const hearted=btn.classList.contains('hearted');
   const count=parseInt(document.getElementById('hdCount').textContent)||0;
   const now=!hearted; const nc=now?count+1:Math.max(0,count-1);
-  lsSet('hd_'+bk,now);lsSet('hdc_'+bk,nc);
+  if(isCurated===true||isCurated==='true'){
+    lsSet('ht_'+bookKey,now);
+    lsSet('htc_'+bookKey,Math.max(0,lsGet('htc_'+bookKey,0)+(now?1:-1)));
+  } else {
+    lsSet('hd_'+bk,now);lsSet('hdc_'+bk,nc);
+  }
   btn.className='heart-big'+(now?' hearted':'');
   btn.innerHTML=`${now?'❤️':'🤍'} <span id="hdCount">${nc}</span> 하트`;
+  recordParticipation(state.type);
   if(now)showToast('❤️ 하트를 눌렀어요!');
 }
 
@@ -1419,6 +1467,36 @@ async function submitRevBtn(bk) {
    ══════════════════════════════════════════ */
 
 /* ══════════════════════════════════════════
+   PARTICIPANT TRACKING
+   ══════════════════════════════════════════ */
+function recordParticipation(type) {
+  const key='participants_'+type;
+  const list=lsGet(key,[]);
+  const uid=getUserKey();
+  if(!list.includes(uid)){list.push(uid);lsSet(key,list);}
+}
+function getParticipantCount(type){return lsGet('participants_'+type,[]).length;}
+function _backfillParticipants(){
+  Object.keys(MBTI_DATA).forEach(type=>{
+    const recs=lsGet('recs_'+type,[]);
+    recs.forEach(r=>{
+      if(!r.userKey)return;
+      const key='participants_'+type;
+      const list=lsGet(key,[]);
+      if(!list.includes(r.userKey)){list.push(r.userKey);lsSet(key,list);}
+    });
+  });
+}
+function _participantBadge(type){
+  const n=getParticipantCount(type);
+  let style;
+  if(n===0) style='background:#E0E0E0;color:#999';
+  else if(n<5) style='background:rgba(0,0,0,.45);color:#fff';
+  else style='background:linear-gradient(135deg,#FF6B9D,#C44569);color:#fff;box-shadow:0 2px 6px rgba(255,107,157,.4)';
+  return `<div class="type-participants" style="${style}">👥 ${n}명</div>`;
+}
+
+/* ══════════════════════════════════════════
    UTILS
    ══════════════════════════════════════════ */
 function showToast(msg) {
@@ -1431,6 +1509,7 @@ function showToast(msg) {
    INIT
    ══════════════════════════════════════════ */
 state.type=lsGet('myMBTI','INTJ');
+_backfillParticipants();
 renderPage();
 </script>
 </body>

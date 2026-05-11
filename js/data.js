@@ -5,7 +5,7 @@
 const MBTI_DATA = {
 
   INTJ: {
-    name: '전략가', emoji: '🏰', group: 'NT', color: '#6C4AB6',
+    name: '전략가', emoji: '🏰', group: 'NT', color: '#4527A0',
     desc: '독립적 사고와 장기 전략으로 목표를 향해 나아가는 분석가. 지식 기반 의사결정과 시스템 설계를 즐깁니다.',
     traits: ['전략적', '독립적', '논리적', '미래지향'],
     selectReason: '시스템 사고·원칙 기반 의사결정·장기 비전을 다루는 책',
@@ -22,7 +22,7 @@ const MBTI_DATA = {
   },
 
   INTP: {
-    name: '논리학자', emoji: '🔬', group: 'NT', color: '#4575B4',
+    name: '논리학자', emoji: '🔬', group: 'NT', color: '#673AB7',
     desc: '세상의 모든 것을 이론으로 설명하려는 탐구자. 지식의 본질과 논리적 체계를 추구합니다.',
     traits: ['분석적', '이론적', '호기심', '객관적'],
     selectReason: '이론적 탐구·데이터 기반 사고·지식 체계의 본질을 다루는 책',
@@ -39,7 +39,7 @@ const MBTI_DATA = {
   },
 
   ENTJ: {
-    name: '통솔자', emoji: '👑', group: 'NT', color: '#D73027',
+    name: '통솔자', emoji: '👑', group: 'NT', color: '#8E24AA',
     desc: '비전을 제시하고 시스템을 구축해 성과를 이끄는 타고난 리더. 효율과 목표 달성을 최우선합니다.',
     traits: ['리더십', '결단력', '전략적', '추진력'],
     selectReason: '목표 관리·리더십 시스템·효율 극대화를 다루는 책',
@@ -56,7 +56,7 @@ const MBTI_DATA = {
   },
 
   ENTP: {
-    name: '변론가', emoji: '⚡', group: 'NT', color: '#F46D43',
+    name: '변론가', emoji: '⚡', group: 'NT', color: '#AB47BC',
     desc: '기존 틀을 도전하고 새로운 가능성을 발견하는 혁신가. 논쟁과 아이디어 실험을 즐깁니다.',
     traits: ['창의적', '논쟁적', '혁신적', '빠른 사고'],
     selectReason: '기존 통념 도전·새로운 관점·설득과 영향력을 다루는 책',
@@ -73,7 +73,7 @@ const MBTI_DATA = {
   },
 
   INFJ: {
-    name: '옹호자', emoji: '🌟', group: 'NF', color: '#2E8B57',
+    name: '옹호자', emoji: '🌟', group: 'NF', color: '#1B5E20',
     desc: '깊은 통찰과 강한 사명감으로 의미 있는 변화를 추구하는 이상주의자. 타인의 잠재력을 봅니다.',
     traits: ['통찰력', '사명감', '공감', '완벽주의'],
     selectReason: '삶의 의미·공감과 치유·사회 변화의 비전을 다루는 책',
@@ -90,7 +90,7 @@ const MBTI_DATA = {
   },
 
   INFP: {
-    name: '중재자', emoji: '🌸', group: 'NF', color: '#D4699B',
+    name: '중재자', emoji: '🌸', group: 'NF', color: '#2E7D32',
     desc: '자신만의 가치와 이상을 지닌 감성적 창작자. 진정성과 상상력으로 아름다움을 만듭니다.',
     traits: ['이상주의', '감수성', '창의적', '진정성'],
     selectReason: '감성·상상력·진정한 자아와 이상적 세계를 다루는 책',
@@ -107,7 +107,7 @@ const MBTI_DATA = {
   },
 
   ENFJ: {
-    name: '선도자', emoji: '🌈', group: 'NF', color: '#1A9850',
+    name: '선도자', emoji: '🌈', group: 'NF', color: '#43A047',
     desc: '카리스마 있는 교사형 리더. 타인의 성장을 진심으로 지원하며 공동체에 영감을 줍니다.',
     traits: ['영감', '공감 리더십', '사교적', '배려'],
     selectReason: '공감 리더십·사람 중심의 성장·공동체 변화를 다루는 책',
@@ -124,7 +124,7 @@ const MBTI_DATA = {
   },
 
   ENFP: {
-    name: '활동가', emoji: '🎆', group: 'NF', color: '#F4A942',
+    name: '활동가', emoji: '🎆', group: 'NF', color: '#66BB6A',
     desc: '열정과 상상력으로 가득 찬 자유로운 영혼. 새로운 경험과 가능성에 끊임없이 이끌립니다.',
     traits: ['열정적', '창의적', '낙관적', '자유로움'],
     selectReason: '자유·창의적 탐험·사람과의 연결·삶의 에너지를 다루는 책',
@@ -141,7 +141,7 @@ const MBTI_DATA = {
   },
 
   ISTJ: {
-    name: '현실주의자', emoji: '📋', group: 'SJ', color: '#3B6CB7',
+    name: '현실주의자', emoji: '📋', group: 'SJ', color: '#0D47A1',
     desc: '신뢰할 수 있는 꾸준함으로 모든 일을 완수하는 완벽주의자. 사실과 원칙을 최우선합니다.',
     traits: ['체계적', '신뢰성', '책임감', '사실 기반'],
     selectReason: '검증된 원칙·체계적 습관·사실 기반 의사결정을 다루는 책',
@@ -158,7 +158,7 @@ const MBTI_DATA = {
   },
 
   ISFJ: {
-    name: '수호자', emoji: '🛡️', group: 'SJ', color: '#4BACC6',
+    name: '수호자', emoji: '🛡️', group: 'SJ', color: '#1565C0',
     desc: '헌신적인 배려로 주변을 지키는 따뜻한 수호자. 조용하지만 강한 충성심과 실용성을 지닙니다.',
     traits: ['배려', '헌신적', '성실함', '현실적'],
     selectReason: '배려·공감·조용한 헌신·실용적 자기계발을 다루는 책',
@@ -175,7 +175,7 @@ const MBTI_DATA = {
   },
 
   ESTJ: {
-    name: '경영자', emoji: '🏢', group: 'SJ', color: '#2166AC',
+    name: '경영자', emoji: '🏢', group: 'SJ', color: '#1E88E5',
     desc: '체계와 규칙으로 조직을 이끄는 결과 지향의 경영자. 효율과 목표 달성을 최우선합니다.',
     traits: ['체계적', '결과 지향', '전통적', '리더십'],
     selectReason: '목표 관리·조직 효율·결과 중심의 경영을 다루는 책',
@@ -192,7 +192,7 @@ const MBTI_DATA = {
   },
 
   ESFJ: {
-    name: '집정관', emoji: '🤝', group: 'SJ', color: '#27AE60',
+    name: '집정관', emoji: '🤝', group: 'SJ', color: '#42A5F5',
     desc: '배려와 조화로 공동체를 하나로 묶는 사교적 관계 전문가. 사람들의 감정을 잘 읽습니다.',
     traits: ['배려심', '사교적', '조화 추구', '현실적'],
     selectReason: '인간관계·공감·공동체의 따뜻함을 다루는 책',
@@ -209,7 +209,7 @@ const MBTI_DATA = {
   },
 
   ISTP: {
-    name: '장인', emoji: '🔧', group: 'SP', color: '#E76F51',
+    name: '장인', emoji: '🔧', group: 'SP', color: '#B71C1C',
     desc: '냉철한 분석으로 현실 문제를 해결하는 실용적 전문가. 논리와 효율을 중시합니다.',
     traits: ['실용적', '냉철함', '독립적', '현실적'],
     selectReason: '논리적 분석·현실 문제 해결·비판적 사고를 다루는 책',
@@ -226,7 +226,7 @@ const MBTI_DATA = {
   },
 
   ISFP: {
-    name: '모험가', emoji: '🎨', group: 'SP', color: '#F4A261',
+    name: '모험가', emoji: '🎨', group: 'SP', color: '#D32F2F',
     desc: '현재 순간의 아름다움을 느끼는 감성적 예술가. 자유와 자연을 사랑하며 온화하게 공감합니다.',
     traits: ['예술적', '현재 중심', '온화함', '감성적'],
     selectReason: '감성·아름다움·현재 순간의 소중함을 다루는 책',
@@ -243,7 +243,7 @@ const MBTI_DATA = {
   },
 
   ESTP: {
-    name: '사업가', emoji: '🚀', group: 'SP', color: '#C0392B',
+    name: '사업가', emoji: '🚀', group: 'SP', color: '#E53935',
     desc: '에너지 넘치는 행동파. 위험을 감수하며 현실에서 즉각적인 결과를 만들어냅니다.',
     traits: ['행동력', '현실적', '대담함', '즉각 반응'],
     selectReason: '빠른 실행·현실 감각·위험 감수·성과 창출을 다루는 책',
@@ -260,7 +260,7 @@ const MBTI_DATA = {
   },
 
   ESFP: {
-    name: '연예인', emoji: '🎭', group: 'SP', color: '#E67E22',
+    name: '연예인', emoji: '🎭', group: 'SP', color: '#EF5350',
     desc: '활발하고 즉흥적인 엔터테이너. 현재 순간을 즐기고 사람들과 함께하는 것을 사랑합니다.',
     traits: ['활발함', '즉흥적', '낙관적', '사교적'],
     selectReason: '현재 즐거움·사람과의 연결·긍정적 에너지를 다루는 책',
@@ -278,10 +278,10 @@ const MBTI_DATA = {
 };
 
 const GROUP_INFO = {
-  NT: { label: '분석가', color: '#6C4AB6' },
-  NF: { label: '외교관', color: '#2E8B57' },
-  SJ: { label: '관리자', color: '#2166AC' },
-  SP: { label: '탐험가', color: '#C0392B' },
+  NT: { label: '분석가', color: '#673AB7' },
+  NF: { label: '외교관', color: '#388E3C' },
+  SJ: { label: '관리자', color: '#1976D2' },
+  SP: { label: '탐험가', color: '#D32F2F' },
 };
 
 // ── localStorage 유틸 ──
