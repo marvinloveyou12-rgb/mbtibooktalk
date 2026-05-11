@@ -447,74 +447,60 @@ img{max-width:100%}
 .back-btn:hover{border-color:var(--green);color:var(--green-d)}
 
 /* ── PHOTO TAB ── */
-.photo-mode-switch{
-  display:inline-flex;border-radius:50px;overflow:hidden;
-  border:2px solid var(--light);background:var(--white);
-}
-.photo-mode-btn{
-  padding:9px 22px;font-size:.85rem;font-weight:700;color:var(--gray);
-  border:none;background:none;cursor:pointer;transition:all .18s;
-}
-.photo-mode-btn.active{background:var(--green);color:var(--white)}
 .necut-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 .upload-cell{
   aspect-ratio:1;border-radius:12px;border:2.5px dashed var(--light);
   display:flex;align-items:center;justify-content:center;
   overflow:hidden;transition:border-color .2s;background:var(--white);position:relative;
 }
-.upload-ph{display:flex;flex-direction:column;align-items:center;gap:6px}
-.photo-src-btns{display:flex;gap:6px}
+.upload-ph{display:flex;flex-direction:column;align-items:center;gap:5px}
+.photo-src-btns{display:flex;gap:4px}
 .photo-src-btn{
-  display:flex;flex-direction:column;align-items:center;gap:2px;
-  padding:8px 10px;border-radius:10px;background:var(--light);
-  cursor:pointer;font-size:1.2rem;transition:background .15s;border:none;
+  display:flex;flex-direction:column;align-items:center;gap:1px;
+  padding:6px 7px;border-radius:9px;background:var(--light);
+  cursor:pointer;font-size:1.1rem;transition:background .15s;border:none;font-family:inherit;
 }
-.photo-src-btn small{font-size:.62rem;font-weight:700;color:var(--gray)}
-.photo-src-btn:hover{background:#E0E0D8}
-.upload-slot-num{font-size:.72rem;color:#bbb;font-weight:700;margin-top:2px}
+.photo-src-btn small{font-size:.6rem;font-weight:700;color:var(--gray)}
+.photo-src-btn:hover,.photo-src-btn:active{background:#E0E0D8}
+.upload-slot-num{font-size:.7rem;color:#bbb;font-weight:700}
 .upload-resel{
-  position:absolute;bottom:0;left:0;right:0;display:flex;justify-content:center;gap:8px;
-  padding:6px;background:rgba(0,0,0,.48);
+  position:absolute;bottom:0;left:0;right:0;display:flex;justify-content:center;gap:6px;
+  padding:5px;background:rgba(0,0,0,.5);
 }
-.upload-resel label{
-  color:#fff;font-size:1rem;cursor:pointer;padding:4px 9px;
-  border-radius:8px;background:rgba(255,255,255,.2);transition:background .15s;
+.upload-resel label,.upload-resel button{
+  color:#fff;font-size:.95rem;cursor:pointer;padding:3px 8px;
+  border-radius:7px;background:rgba(255,255,255,.2);transition:background .15s;
+  border:none;font-family:inherit;
 }
-.upload-resel label:hover{background:rgba(255,255,255,.38)}
+.upload-resel label:hover,.upload-resel button:hover{background:rgba(255,255,255,.38)}
 .compose-btn{
   width:100%;padding:13px;background:var(--green);color:var(--white);border-radius:var(--radius-xl);
   font-weight:700;font-size:.95rem;transition:background .2s;border:none;cursor:pointer;
 }
 .compose-btn:hover{background:var(--green-d)}
 .photo-preview-wrap{margin-top:22px;background:var(--white);border-radius:var(--radius-lg);padding:18px;box-shadow:var(--shadow-sm)}
-/* book cover search */
-.cover-slot-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:14px}
-.cover-slot{
-  aspect-ratio:3/4;border-radius:8px;border:2px dashed var(--light);
-  background:var(--white);display:flex;align-items:center;justify-content:center;
-  overflow:hidden;position:relative;
+/* book cover search modal */
+.book-cover-modal{
+  position:fixed;inset:0;z-index:9000;background:rgba(0,0,0,.55);
+  display:flex;align-items:flex-end;
 }
-.cover-slot img{width:100%;height:100%;object-fit:cover;display:block}
-.cover-slot-num{font-size:1.1rem;font-weight:900;color:#ddd}
-.cover-slot-rm{
-  position:absolute;top:3px;right:3px;width:18px;height:18px;border-radius:50%;
-  background:rgba(0,0,0,.65);color:#fff;font-size:.65rem;font-weight:900;
-  display:flex;align-items:center;justify-content:center;cursor:pointer;line-height:1;border:none;
+.book-cover-modal-body{
+  background:var(--white);border-radius:20px 20px 0 0;
+  padding:20px 20px 36px;width:100%;max-height:82vh;overflow-y:auto;
 }
-.cover-srch-row{display:flex;gap:8px;margin-bottom:10px}
 .cover-srch-item{
   display:flex;gap:10px;align-items:center;padding:10px;
-  background:var(--white);border-radius:12px;box-shadow:var(--shadow-sm);margin-bottom:8px;
+  background:var(--bg);border-radius:12px;margin-bottom:8px;
 }
-.cover-srch-img{width:40px;height:55px;object-fit:cover;border-radius:6px;background:var(--light);flex-shrink:0}
+.cover-srch-img{width:42px;height:58px;object-fit:cover;border-radius:7px;background:var(--light);flex-shrink:0}
 .cover-srch-info{flex:1;min-width:0}
 .cover-srch-title{font-weight:700;font-size:.82rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-bottom:2px}
 .cover-srch-author{font-size:.74rem;color:var(--gray)}
 .cover-add-btn{
-  padding:6px 12px;background:var(--yellow);color:#fff;border-radius:10px;
-  font-size:.78rem;font-weight:700;flex-shrink:0;border:none;cursor:pointer;transition:background .15s;
+  padding:7px 13px;background:var(--green);color:#fff;border-radius:10px;
+  font-size:.8rem;font-weight:700;flex-shrink:0;border:none;cursor:pointer;transition:background .15s;
 }
-.cover-add-btn:hover{background:var(--yellow-d)}.cover-add-btn:disabled{background:#ccc;cursor:default}
+.cover-add-btn:hover{background:var(--green-d)}.cover-add-btn:disabled{background:#ccc;cursor:default}
 </style>
 </head>
 <body>
@@ -545,6 +531,21 @@ img{max-width:100%}
 
 <!-- Toast -->
 <div class="toast" id="toast"></div>
+
+<!-- Book Cover Search Modal -->
+<div id="bookCoverModal" class="book-cover-modal" style="display:none" onclick="if(event.target===this)closeBookCoverSearch()">
+  <div class="book-cover-modal-body">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+      <strong style="font-size:.97rem">📖 책표지 선택 — 사진 <span id="bookCoverSlotLabel">1</span></strong>
+      <button onclick="closeBookCoverSearch()" style="font-size:1.3rem;color:var(--gray);background:none;border:none;cursor:pointer;line-height:1">✕</button>
+    </div>
+    <div style="display:flex;gap:8px;margin-bottom:12px">
+      <input class="s-input" id="necutBookInput" placeholder="책 제목 또는 저자 검색" onkeydown="if(event.key==='Enter')doNecutBookSearch()">
+      <button class="s-btn" onclick="doNecutBookSearch()">검색</button>
+    </div>
+    <div id="necutBookResults"></div>
+  </div>
+</div>
 
 <!-- chars.js (캐릭터 SVG) -->
 <script src="js/chars.js"></script>
@@ -1073,58 +1074,31 @@ function renderRoom() {
 
     <!-- photo tab -->
     <div id="tab-photo" style="display:${state.tab==='photo'?'block':'none'}">
-      <div style="text-align:center;margin-bottom:16px">
-        <div class="photo-mode-switch">
-          <button class="photo-mode-btn active" id="pmBtnNecut" onclick="switchPhotoMode('necut')">📷 MBTI 네컷</button>
-          <button class="photo-mode-btn" id="pmBtnBook" onclick="switchPhotoMode('book')">📚 책표지 4컷</button>
-        </div>
-      </div>
-
-      <!-- MBTI 네컷 모드 -->
-      <div id="photoModeNecut">
-        <p style="font-size:.83rem;color:var(--gray);margin-bottom:14px;line-height:1.55">
-          📷 <strong style="color:${d.color}">${state.type} ${d.name}</strong> 유형의 MBTI 네컷 인증샷을 만들어보세요!<br>
-          각 칸에서 <strong>카메라</strong> 또는 <strong>앨범</strong>을 선택해 사진을 채우세요.
-        </p>
-        <div class="necut-grid">
-          ${[0,1,2,3].map(i=>`<div class="upload-cell" id="uploadCell${i}">
-            <input type="file" id="photoCam${i}" accept="image/*" capture="environment" style="display:none" onchange="handlePhotoUpload(${i},this)">
-            <input type="file" id="photoAlb${i}" accept="image/*" style="display:none" onchange="handlePhotoUpload(${i},this)">
-            <div class="upload-ph" id="uploadPh${i}">
-              <div class="photo-src-btns">
-                <label for="photoCam${i}" class="photo-src-btn">📷<small>카메라</small></label>
-                <label for="photoAlb${i}" class="photo-src-btn">🖼<small>앨범</small></label>
-              </div>
-              <div class="upload-slot-num">사진 ${i+1}</div>
+      <p style="font-size:.83rem;color:var(--gray);margin-bottom:14px;line-height:1.55">
+        📷 <strong style="color:${d.color}">${state.type} ${d.name}</strong> MBTI 네컷 인증샷을 만들어보세요!<br>
+        각 칸에서 <strong>카메라·앨범·책표지</strong> 중 선택해 채우세요.
+      </p>
+      <div class="necut-grid">
+        ${[0,1,2,3].map(i=>`<div class="upload-cell" id="uploadCell${i}">
+          <input type="file" id="photoCam${i}" accept="image/*" capture="environment" style="display:none" onchange="handlePhotoUpload(${i},this)">
+          <input type="file" id="photoAlb${i}" accept="image/*" style="display:none" onchange="handlePhotoUpload(${i},this)">
+          <div class="upload-ph" id="uploadPh${i}">
+            <div class="photo-src-btns">
+              <label for="photoCam${i}" class="photo-src-btn">📷<small>카메라</small></label>
+              <label for="photoAlb${i}" class="photo-src-btn">🖼<small>앨범</small></label>
+              <button class="photo-src-btn" onclick="openBookCoverSearch(${i})">📖<small>책표지</small></button>
             </div>
-            <img id="uploadImg${i}" style="display:none;width:100%;height:100%;object-fit:cover">
-            <div class="upload-resel" id="uploadResel${i}" style="display:none">
-              <label for="photoCam${i}">📷</label>
-              <label for="photoAlb${i}">🖼</label>
-            </div>
-          </div>`).join('')}
-        </div>
-        <button class="compose-btn" style="margin-top:14px" onclick="triggerCompose('necut')">✨ 네컷 이미지 합성</button>
+            <div class="upload-slot-num">사진 ${i+1}</div>
+          </div>
+          <img id="uploadImg${i}" style="display:none;width:100%;height:100%;object-fit:cover">
+          <div class="upload-resel" id="uploadResel${i}" style="display:none">
+            <label for="photoCam${i}">📷</label>
+            <label for="photoAlb${i}">🖼</label>
+            <button onclick="openBookCoverSearch(${i})">📖</button>
+          </div>
+        </div>`).join('')}
       </div>
-
-      <!-- 책표지 4컷 모드 -->
-      <div id="photoModeBook" style="display:none">
-        <p style="font-size:.83rem;color:var(--gray);margin-bottom:12px;line-height:1.55">
-          📚 책 표지를 검색해 슬롯을 채우면 <strong>4컷 이미지</strong>로 합성됩니다!
-        </p>
-        <div class="cover-slot-grid" id="coverSlotGrid">
-          <div class="cover-slot" id="coverSlot0"><span class="cover-slot-num">1</span></div>
-          <div class="cover-slot" id="coverSlot1"><span class="cover-slot-num">2</span></div>
-          <div class="cover-slot" id="coverSlot2"><span class="cover-slot-num">3</span></div>
-          <div class="cover-slot" id="coverSlot3"><span class="cover-slot-num">4</span></div>
-        </div>
-        <div class="cover-srch-row">
-          <input class="s-input" id="coverSrchInput" placeholder="책 제목 또는 저자 검색" onkeydown="if(event.key==='Enter')doCoverSearch()">
-          <button class="s-btn" onclick="doCoverSearch()">검색</button>
-        </div>
-        <div id="coverSrchResults"></div>
-        <button class="compose-btn" style="margin-top:6px" onclick="triggerCompose('book')">✨ 책표지 4컷 합성</button>
-      </div>
+      <button class="compose-btn" style="margin-top:14px" onclick="composeNecut()">✨ 네컷 이미지 합성</button>
 
       <!-- 완성된 이미지 미리보기 -->
       <div id="photoPreview" style="display:none" class="photo-preview-wrap">
@@ -1174,7 +1148,6 @@ function switchTab(name) {
   document.querySelectorAll('.tab').forEach((t,i)=>{
     t.classList.toggle('active',['curated','community','search','photo'][i]===name);
   });
-  if(name==='photo'&&window._composeMode==='book') renderCoverSlots();
   window.scrollTo(0,0);
 }
 
@@ -1694,16 +1667,18 @@ function showToast(msg) {
    PHOTO SHARE FEATURE
    ══════════════════════════════════════════ */
 window._necutPhotos=[null,null,null,null];
-window._coverSlots=[null,null,null,null];
-window._composeMode='necut';
+window._necutSlotMeta=[null,null,null,null]; // {type:'photo'|'book', title?}
+window._necutBookSlot=-1;
 
-function switchPhotoMode(mode){
-  window._composeMode=mode;
-  document.getElementById('photoModeNecut').style.display=mode==='necut'?'block':'none';
-  document.getElementById('photoModeBook').style.display=mode==='book'?'block':'none';
-  document.getElementById('photoPreview').style.display='none';
-  document.getElementById('pmBtnNecut').classList.toggle('active',mode==='necut');
-  document.getElementById('pmBtnBook').classList.toggle('active',mode==='book');
+function _applySlot(idx, imgSrc, meta){
+  window._necutPhotos[idx]=imgSrc;
+  window._necutSlotMeta[idx]=meta;
+  const img=document.getElementById('uploadImg'+idx);
+  const ph=document.getElementById('uploadPh'+idx);
+  const rs=document.getElementById('uploadResel'+idx);
+  if(img){img.src=imgSrc;img.style.display='block';}
+  if(ph)ph.style.display='none';
+  if(rs)rs.style.display='flex';
 }
 
 function handlePhotoUpload(idx,input){
@@ -1711,71 +1686,62 @@ function handlePhotoUpload(idx,input){
   if(!file)return;
   const reader=new FileReader();
   reader.onload=e=>{
-    window._necutPhotos[idx]=e.target.result;
-    const img=document.getElementById('uploadImg'+idx);
-    const ph=document.getElementById('uploadPh'+idx);
-    const rs=document.getElementById('uploadResel'+idx);
-    if(img){img.src=e.target.result;img.style.display='block';}
-    if(ph)ph.style.display='none';
-    if(rs)rs.style.display='flex';
+    _applySlot(idx, e.target.result, {type:'photo'});
     input.value='';
   };
   reader.readAsDataURL(file);
 }
 
-/* ── 책표지 4컷 ── */
-function renderCoverSlots(){
-  window._coverSlots.forEach((b,i)=>{
-    const slot=document.getElementById('coverSlot'+i);
-    if(!slot)return;
-    if(b){
-      slot.innerHTML=`<img src="${b.cover||''}" alt="${b.title}" onerror="this.style.display='none'">`+
-        `<button class="cover-slot-rm" onclick="removeCoverSlot(${i})">✕</button>`;
-    } else {
-      slot.innerHTML=`<span class="cover-slot-num">${i+1}</span>`;
-    }
-  });
+/* ── 책표지 검색 모달 ── */
+function openBookCoverSearch(idx){
+  window._necutBookSlot=idx;
+  const lbl=document.getElementById('bookCoverSlotLabel');
+  if(lbl)lbl.textContent=idx+1;
+  const res=document.getElementById('necutBookResults');
+  if(res)res.innerHTML='';
+  const inp=document.getElementById('necutBookInput');
+  if(inp)inp.value='';
+  document.getElementById('bookCoverModal').style.display='flex';
+  setTimeout(()=>inp&&inp.focus(),120);
 }
 
-function addCoverToSlot(b,btn){
-  let idx=window._coverSlots.indexOf(null);
-  if(idx===-1){showToast('슬롯이 가득 찼어요! 먼저 하나를 제거해주세요.');return;}
-  window._coverSlots[idx]=b;
-  renderCoverSlots();
-  if(btn)btn.disabled=true;
-  showToast(`📚 ${b.title.slice(0,12)}… 추가됐어요!`);
+function closeBookCoverSearch(){
+  document.getElementById('bookCoverModal').style.display='none';
 }
 
-function removeCoverSlot(idx){
-  window._coverSlots[idx]=null;
-  renderCoverSlots();
-  // re-enable corresponding add btn if visible
-  document.querySelectorAll('.cover-add-btn').forEach(btn=>btn.disabled=false);
-}
-
-async function doCoverSearch(){
-  const q=(document.getElementById('coverSrchInput')?.value||'').trim();
+async function doNecutBookSearch(){
+  const q=(document.getElementById('necutBookInput')?.value||'').trim();
   if(!q)return;
-  const res=document.getElementById('coverSrchResults');
+  const res=document.getElementById('necutBookResults');
   res.innerHTML='<div class="loader"><span></span><span></span><span></span></div>';
   const books=await searchBooks(q,'all');
   res.innerHTML='';
   if(!books.length){
-    res.innerHTML='<p style="text-align:center;color:#aaa;padding:16px 0">검색 결과가 없습니다.</p>';
+    res.innerHTML='<p style="text-align:center;color:#aaa;padding:18px 0">검색 결과가 없습니다.</p>';
     return;
   }
-  books.slice(0,12).forEach(b=>{
+  books.slice(0,15).forEach(b=>{
     const item=document.createElement('div');
     item.className='cover-srch-item';
-    const safeB=JSON.stringify(b).replace(/'/g,'&#39;').replace(/`/g,'&#96;');
     item.innerHTML=`<img class="cover-srch-img" src="${b.cover||''}" alt="${b.title}" onerror="this.style.background='#E8E8D8'">
       <div class="cover-srch-info">
         <div class="cover-srch-title">${b.title}</div>
         <div class="cover-srch-author">${b.author||''}</div>
       </div>
-      <button class="cover-add-btn" onclick="addCoverToSlot(${safeB},this)">+ 선택</button>`;
+      <button class="cover-add-btn" id="caBtn_${b.isbn||b.title.slice(0,8).replace(/\s/g,'_')}">선택</button>`;
+    const btn=item.querySelector('.cover-add-btn');
+    btn.onclick=()=>selectBookCover(b.cover||'', b.title, btn);
     res.appendChild(item);
   });
+}
+
+function selectBookCover(coverUrl, title, btn){
+  const idx=window._necutBookSlot;
+  if(idx<0||idx>3)return;
+  if(!coverUrl){showToast('표지 이미지가 없는 책입니다.');return;}
+  _applySlot(idx, coverUrl, {type:'book', title});
+  closeBookCoverSearch();
+  showToast(`📚 책 표지가 사진 ${idx+1}에 적용됐어요!`);
 }
 
 function _loadImgEl(src){
@@ -1783,12 +1749,7 @@ function _loadImgEl(src){
     const img=new Image();
     img.crossOrigin='anonymous';
     img.onload=()=>res(img);
-    img.onerror=()=>{
-      const img2=new Image();
-      img2.onload=()=>res(img2);
-      img2.onerror=()=>rej(new Error('img load fail'));
-      img2.src=src+(src.includes('?')?'&':'?')+'_nc='+Date.now();
-    };
+    img.onerror=()=>rej(new Error('img load fail'));
     img.src=src;
   });
 }
@@ -1814,13 +1775,8 @@ function _wrapText(ctx,text,x,y,maxW,lineH){
   return y;
 }
 
-async function triggerCompose(mode){
-  document.getElementById('photoPreview').style.display='none';
-  if(mode==='necut') await composeNecut();
-  else await composeBookCovers();
-}
-
 async function composeNecut(){
+  document.getElementById('photoPreview').style.display='none';
   const d=MBTI_DATA[state.type];
   const SZ=800,CELL=SZ/2,HDR=80,FTR=70;
   const canvas=document.getElementById('photoCanvas');
@@ -1851,10 +1807,20 @@ async function composeNecut(){
         ctx.drawImage(img,x+(CELL-dw)/2,y+(CELL-dh)/2,dw,dh);
         ctx.restore();
       }catch{
-        ctx.fillStyle='#333';
-        _roundRectPath(ctx,x+4,y+4,CELL-8,CELL-8,10); ctx.fill();
-        ctx.fillStyle='#888'; ctx.font='48px sans-serif'; ctx.textAlign='center'; ctx.textBaseline='middle';
-        ctx.fillText('📷',x+CELL/2,y+CELL/2);
+        const meta=window._necutSlotMeta[i];
+        if(meta?.type==='book'){
+          ctx.fillStyle='#F5F0FF';
+          _roundRectPath(ctx,x+4,y+4,CELL-8,CELL-8,10); ctx.fill();
+          ctx.font='38px sans-serif'; ctx.textAlign='center'; ctx.textBaseline='middle';
+          ctx.fillText('📚',x+CELL/2,y+CELL/2-22);
+          ctx.fillStyle=d.color; ctx.font='bold 13px "Noto Sans KR",sans-serif';
+          _wrapText(ctx,(meta.title||'').slice(0,16),x+CELL/2,y+CELL/2+16,CELL-24,18);
+        } else {
+          ctx.fillStyle='#333';
+          _roundRectPath(ctx,x+4,y+4,CELL-8,CELL-8,10); ctx.fill();
+          ctx.fillStyle='#888'; ctx.font='48px sans-serif'; ctx.textAlign='center'; ctx.textBaseline='middle';
+          ctx.fillText('📷',x+CELL/2,y+CELL/2);
+        }
       }
     } else {
       ctx.fillStyle='#2a2a2a';
@@ -1881,78 +1847,16 @@ async function composeNecut(){
   document.getElementById('photoPreview').scrollIntoView({behavior:'smooth',block:'nearest'});
 }
 
-async function composeBookCovers(){
-  const d=MBTI_DATA[state.type];
-  const selected=window._coverSlots.filter(Boolean);
-  if(!selected.length){showToast('책 표지를 먼저 검색해서 선택해주세요!');return;}
-
-  const SZ=800,HDR=80,FTR=70;
-  const count=Math.min(selected.length,4);
-  const cols=count<=1?1:2;
-  const rows=Math.ceil(count/cols);
-  const CW=Math.floor(SZ/cols);
-  const CH=Math.round(CW*4/3);
-  const canvas=document.getElementById('photoCanvas');
-  canvas.width=SZ; canvas.height=HDR+rows*CH+FTR;
-  const ctx=canvas.getContext('2d');
-
-  ctx.fillStyle='#F9F9F1'; ctx.fillRect(0,0,canvas.width,canvas.height);
-
-  // header
-  ctx.fillStyle=d.color; ctx.fillRect(0,0,SZ,HDR);
-  ctx.fillStyle='#fff'; ctx.font='bold 24px "Noto Sans KR",sans-serif';
-  ctx.textAlign='center'; ctx.textBaseline='middle';
-  ctx.fillText(`${d.emoji} ${state.type} 추천 도서 4컷`,SZ/2,HDR/2);
-
-  for(let i=0;i<count;i++){
-    const b=selected[i];
-    const col=i%cols, row=Math.floor(i/cols);
-    const x=col*CW, y=HDR+row*CH;
-    let drawn=false;
-    const coverUrl=b.cover||await getCover(b.query||b.title||'',b.isbn||'');
-    if(coverUrl){
-      try{
-        const img=await _loadImgEl(coverUrl);
-        ctx.save();
-        _roundRectPath(ctx,x+6,y+6,CW-12,CH-12,14); ctx.clip();
-        const ratio=Math.max(CW/img.width,CH/img.height);
-        const dw=img.width*ratio,dh=img.height*ratio;
-        ctx.drawImage(img,x+(CW-dw)/2,y+(CH-dh)/2,dw,dh);
-        ctx.restore(); drawn=true;
-      }catch{}
-    }
-    if(!drawn){
-      ctx.fillStyle='#EEE';
-      _roundRectPath(ctx,x+6,y+6,CW-12,CH-12,14); ctx.fill();
-      ctx.fillStyle=d.color; ctx.font='bold 14px "Noto Sans KR",sans-serif';
-      ctx.textAlign='center'; ctx.textBaseline='middle';
-      _wrapText(ctx,b.title,x+CW/2,y+CH/2-14,CW-32,22);
-      ctx.fillStyle='#777'; ctx.font='13px "Noto Sans KR",sans-serif';
-      ctx.fillText(b.author||'',x+CW/2,y+CH/2+20);
-    }
-  }
-
-  // dividers
-  ctx.strokeStyle='#fff'; ctx.lineWidth=8;
-  if(cols>1){ctx.beginPath();ctx.moveTo(CW,HDR);ctx.lineTo(CW,HDR+rows*CH);ctx.stroke();}
-  for(let r=1;r<rows;r++){ctx.beginPath();ctx.moveTo(0,HDR+r*CH);ctx.lineTo(SZ,HDR+r*CH);ctx.stroke();}
-
-  // footer
-  ctx.fillStyle=d.color; ctx.fillRect(0,HDR+rows*CH,SZ,FTR);
-  ctx.fillStyle='#fff'; ctx.font='bold 17px "Noto Sans KR",sans-serif';
-  ctx.textAlign='center'; ctx.textBaseline='middle';
-  ctx.fillText('MBTI Book Talk 📚',SZ/2,HDR+rows*CH+FTR/2);
-
-  document.getElementById('photoPreview').style.display='block';
-  document.getElementById('photoPreview').scrollIntoView({behavior:'smooth',block:'nearest'});
-}
-
 function downloadComposed(){
   const canvas=document.getElementById('photoCanvas');
-  const a=document.createElement('a');
-  a.download=`MBTI_${state.type}_${window._composeMode==='necut'?'네컷':'책표지4컷'}.jpg`;
-  a.href=canvas.toDataURL('image/jpeg',0.92);
-  a.click();
+  try{
+    const a=document.createElement('a');
+    a.download=`MBTI_${state.type}_네컷.jpg`;
+    a.href=canvas.toDataURL('image/jpeg',0.92);
+    a.click();
+  }catch{
+    showToast('보안 정책으로 저장이 제한됩니다. 스크린샷을 이용해주세요 📱');
+  }
 }
 
 function shareComposed(){
