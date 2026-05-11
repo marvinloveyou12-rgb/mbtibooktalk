@@ -32,7 +32,13 @@ img{max-width:100%}
 .logo-m{color:var(--dark)}.logo-b{color:var(--orange)}.logo-t{color:var(--purple)}
 .header-back{font-size:1.4rem;padding:4px 10px;border-radius:8px;color:var(--dark);transition:background .15s}
 .header-back:hover{background:var(--light)}
-.header-right{width:40px}
+.header-right{min-width:40px;display:flex;align-items:center;justify-content:flex-end}
+.online-pill{
+  display:inline-flex;align-items:center;gap:5px;
+  background:#F0FFF4;border:1.5px solid #C8E6C9;border-radius:20px;
+  padding:4px 10px;font-size:.72rem;font-weight:700;color:#2E7D32;white-space:nowrap;
+}
+.online-dot{width:7px;height:7px;border-radius:50%;background:#43A047;animation:pulse 1.5s ease-in-out infinite;flex-shrink:0}
 
 /* ── PAGE WRAPPER ── */
 .page{display:none;animation:fadeIn .22s ease}
@@ -450,7 +456,11 @@ img{max-width:100%}
   <div class="header-logo">
     <span class="logo-m">MBTI</span>&nbsp;<span class="logo-b">Book</span><span class="logo-t">Talk</span>
   </div>
-  <div class="header-right"></div>
+  <div class="header-right">
+    <div class="online-pill" id="onlinePill">
+      <span class="online-dot"></span><span id="onlineCount">1</span>명 접속 중
+    </div>
+  </div>
 </header>
 
 <!-- ── PAGES ── -->
@@ -930,8 +940,17 @@ function renderRoom() {
   <div class="inner">
     <!-- curated tab -->
     <div id="tab-curated" style="display:${state.tab==='curated'?'block':'none'}">
-      <div style="font-size:.83rem;color:var(--gray);line-height:1.6;margin-bottom:16px;background:var(--white);border-radius:14px;padding:12px 16px;box-shadow:var(--shadow-sm)">
-        <strong style="color:${d.color}">📌 선정 기준</strong><br>${d.selectReason}
+      <div style="margin-bottom:14px">
+        <div style="font-size:.79rem;color:#555;line-height:1.75;background:#F8F9FF;border-radius:14px;padding:14px 16px;box-shadow:var(--shadow-sm);margin-bottom:10px;border-left:4px solid #7986CB">
+          <strong style="font-size:.82rem;color:#3949AB">📖 큐레이션 도서 선정 방법론</strong><br>
+          MBTI 16유형별 <strong>핵심 인지 기능(Cognitive Functions) 이론</strong>을 바탕으로, 각 유형의 지배적 사고·감정·인식 방식과 도서의 핵심 메시지를 매칭하여 선정했습니다.<br>
+          <span style="display:inline-block;margin-top:6px"><strong>① 인지 기능 부합도</strong> — 해당 유형의 주기능(Dominant)·부기능(Auxiliary)과 책의 핵심 주제 일치 여부</span><br>
+          <strong>② 가치관·관심 영역</strong> — 유형별 선호 사고 방식(분석/공감/실행/탐구)과 도서 내용의 연관성<br>
+          <strong>③ 국내 독자 접근성</strong> — 2019–2024년 출간·번역본 중 국내 독자 평점·판매 지표 반영
+        </div>
+        <div style="font-size:.83rem;color:var(--gray);line-height:1.6;background:var(--white);border-radius:14px;padding:12px 16px;box-shadow:var(--shadow-sm);border-left:4px solid ${d.color}">
+          <strong style="color:${d.color}">📌 ${state.type} 선정 기준</strong><br>${d.selectReason}
+        </div>
       </div>
       <div class="book-grid" id="curatedGrid"></div>
     </div>
@@ -939,9 +958,12 @@ function renderRoom() {
     <!-- community tab -->
     <div id="tab-community" style="display:${state.tab==='community'?'block':'none'}">
       <div class="comm-search-row">
-        <input class="s-input" id="commSearchInput" placeholder="📖 추천 도서 자연어 검색… (제목·저자·추천글)" onkeydown="if(event.key==='Enter')doCommSearch()" oninput="if(!this.value.trim())resetCommSearch()">
+        <input class="s-input" id="commSearchInput" placeholder="제목·저자·추천 한줄평으로 검색" onkeydown="if(event.key==='Enter')doCommSearch()" oninput="if(!this.value.trim())resetCommSearch()">
         <button class="s-btn" onclick="doCommSearch()">검색</button>
       </div>
+      <p style="font-size:.74rem;color:#aaa;margin:-8px 0 12px;line-height:1.5">
+        💡 <strong>추천 한줄평</strong>이란? 커뮤니티 구성원이 책을 추천하면서 남긴 한줄 추천 이유입니다.<br>제목·저자·출판사·추천 한줄평 전체를 대상으로 검색합니다.
+      </p>
       <div id="communityContent"><div class="loader"><span></span><span></span><span></span></div></div>
       <button onclick="switchTab('search')"
         style="display:block;width:100%;padding:14px;border-radius:50px;background:var(--yellow);color:#fff;font-weight:700;font-size:1rem;border:none;cursor:pointer;margin-bottom:28px">
@@ -962,7 +984,7 @@ function renderRoom() {
           <option value="author">저자</option>
           <option value="publisher">출판사</option>
         </select>
-        <input class="s-input" id="srchInput" placeholder="책 제목, 저자, 출판사 검색…" onkeydown="if(event.key==='Enter')doSearch()">
+        <input class="s-input" id="srchInput" placeholder="책 제목, 저자, 출판사 검색" onkeydown="if(event.key==='Enter')doSearch()">
         <button class="s-btn" onclick="doSearch()">검색</button>
       </div>
       <div id="srchResults"></div>
@@ -1172,7 +1194,7 @@ const FILTER_LABELS = {all:'전체', title:'제목', author:'저자', publisher:
 
 function updateSearchPlaceholder() {
   const filter = document.getElementById('srchFilter')?.value || 'all';
-  const ph = {all:'책 제목, 저자, 출판사 검색…', title:'책 제목으로 검색…', author:'저자명으로 검색…', publisher:'출판사명으로 검색…'};
+  const ph = {all:'책 제목, 저자, 출판사 검색', title:'책 제목으로 검색', author:'저자명으로 검색', publisher:'출판사명으로 검색'};
   const input = document.getElementById('srchInput');
   if (input) input.placeholder = ph[filter] || ph.all;
 }
@@ -1497,6 +1519,31 @@ function _participantBadge(type){
 }
 
 /* ══════════════════════════════════════════
+   ONLINE TRACKER (세션 기반 실시간 접속자)
+   ══════════════════════════════════════════ */
+function _updateOnlineSessions() {
+  const uid = getUserKey();
+  const key = '_online_sessions';
+  const sessions = lsGet(key, {});
+  const now = Date.now();
+  sessions[uid] = now;
+  Object.keys(sessions).forEach(k => {
+    if (now - sessions[k] > 5 * 60 * 1000) delete sessions[k];
+  });
+  lsSet(key, sessions);
+  return Object.keys(sessions).length;
+}
+function startOnlineTracker() {
+  const refresh = () => {
+    const n = _updateOnlineSessions();
+    const el = document.getElementById('onlineCount');
+    if (el) el.textContent = n;
+  };
+  refresh();
+  setInterval(refresh, 30000);
+}
+
+/* ══════════════════════════════════════════
    UTILS
    ══════════════════════════════════════════ */
 function showToast(msg) {
@@ -1510,6 +1557,7 @@ function showToast(msg) {
    ══════════════════════════════════════════ */
 state.type=lsGet('myMBTI','INTJ');
 _backfillParticipants();
+startOnlineTracker();
 renderPage();
 </script>
 </body>
