@@ -264,44 +264,31 @@ async def analyze(
     dr_code = DR_CODE_MAP.get(kdc_code, 11) if kdc_code else 11
 
     async with httpx.AsyncClient(timeout=15.0) as client:
-        search_task = client.get(SEARCH_URL, params={
-            "key":      API_KEY,
-            "kwd":      keyword,
-            "pageNum":  page,
-            "pageSize": page_size,
+        search_resp = await client.get(SEARCH_URL, params={
+            "key":       API_KEY,
+            "kwd":       keyword,
+            "pageNum":   page,
+            "pageSize":  page_size,
             "type_name": "도서",
-            "sort":     "S",
+            "sort":      "S",
         })
-        saseo_task = client.get(SASEO_URL, params={
-            "key":            API_KEY,
-            "startRowNumApi": 1,
-            "endRowNemApi":   8,
-            "drCode":         dr_code,
-        })
-
-        import asyncio
-        search_resp, saseo_resp = await asyncio.gather(search_task, saseo_task)
 
     search_books, total = parse_search_xml(search_resp.text, keyword)
-    saseo_books = parse_saseo_xml(saseo_resp.text)
 
     return {
         "keyword": keyword,
         "kdc": {
-            "code":     kdc_code,
-            "name":     kdc_info.get("name", "미분류"),
-            "color":    kdc_info.get("color", "#9CA3AF"),
-            "dr_code":  dr_code,
-            "dr_name":  DR_CODE_NAME.get(dr_code, ""),
+            "code":    kdc_code,
+            "name":    kdc_info.get("name", "미분류"),
+            "color":   kdc_info.get("color", "#9CA3AF"),
         },
         "pagination": {
-            "page":       page,
-            "page_size":  page_size,
-            "total":      total,
+            "page":        page,
+            "page_size":   page_size,
+            "total":       total,
             "total_pages": (total + page_size - 1) // page_size if total else 0,
         },
-        "search_results":  search_books,
-        "recommendations": saseo_books,
+        "search_results": search_books,
     }
 
 

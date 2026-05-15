@@ -1099,40 +1099,31 @@ function curRender(data) {
       <div class="cur-topic-info">
         <span class="cur-topic-label">KDC 주제 분류</span>
         <span class="cur-topic-name" style="color:${color}">${kdc.name}</span>
-        <span class="cur-topic-sub">사서추천 카테고리: ${kdc.dr_name||'-'}</span>
       </div>
     </div>`;
 
-  // 사서 추천도서
-  const recs = (data.recommendations||[]).filter(b=>b.title&&b.title!=='-');
-  html += `<div class="cur-section-title">📚 사서 추천도서 <span class="cur-section-badge">${kdc.dr_name||''}</span></div>`;
-  if(recs.length) {
-    html += `<div class="cur-saseo-grid">`;
-    recs.forEach(b => {
-      const imgSrc = b.image ? `${CUR.API_BASE}/api/img-proxy?url=${encodeURIComponent(b.image)}` : '';
-      const aladinHref = b.isbn
-        ? `https://www.aladin.co.kr/shop/wproduct.aspx?ISBN=${b.isbn}`
-        : `https://www.aladin.co.kr/search/wsearchresult.aspx?SearchWord=${encodeURIComponent(b.title)}`;
-      html += `<a class="cur-rec-card" href="${aladinHref}" target="_blank" rel="noopener" style="text-decoration:none;display:block">
-        ${imgSrc
-          ? `<img class="cur-rec-cover" src="${imgSrc}" alt="${_e(b.title)}" loading="lazy" onerror="this.style.display='none'">`
-          : `<div class="cur-rec-ph">📖</div>`}
+  // 키워드 기반 추천도서 (상위 6건)
+  const pg = data.pagination;
+  const books = data.search_results||[];
+  const topRecs = books.slice(0, 6);
+  html += `<div class="cur-section-title">📚 키워드 추천도서 <span class="cur-section-badge" style="background:#EEF2FF;color:#6366F1">국립중앙도서관 소장</span></div>`;
+  if(topRecs.length) {
+    html += `<div class="cur-saseo-grid" id="curRecGrid">`;
+    topRecs.forEach((b, i) => {
+      const aladinHref = `https://www.aladin.co.kr/search/wsearchresult.aspx?SearchWord=${encodeURIComponent(b.title)}`;
+      html += `<a class="cur-rec-card" href="${_e(b.detail_link||aladinHref)}" target="_blank" rel="noopener" style="text-decoration:none;display:block" id="curRecCard${i}">
+        <div class="cur-rec-ph" id="curRecPh${i}">📖</div>
         <div class="cur-rec-body">
           <div class="cur-rec-title">${_e(b.title)}</div>
           <div class="cur-rec-author">${_e(b.author)}</div>
-          ${b.category?`<span class="cur-rec-cat">${_e(b.category)}</span>`:''}
-          ${b.content?`<div class="cur-rec-txt">${_e(b.content)}</div>`:''}
+          <span class="cur-rec-cat">${_e(b.kdc_name&&b.kdc_name!=='-'?b.kdc_name:kdc.name)}</span>
         </div>
       </a>`;
     });
     html += `</div>`;
   } else {
-    html += `<div style="text-align:center;padding:28px;color:var(--gray);background:var(--white);border-radius:12px;margin-bottom:8px">추천 데이터가 없습니다</div>`;
+    html += `<div style="text-align:center;padding:28px;color:var(--gray);background:var(--white);border-radius:12px;margin-bottom:8px">검색 결과가 없습니다</div>`;
   }
-
-  // 소장자료 검색결과
-  const pg = data.pagination;
-  const books = data.search_results||[];
   html += `<div class="cur-section-title">🔍 소장자료 검색결과
     <span class="cur-total">${pg.total?pg.total.toLocaleString()+'건':''}</span>
   </div>`;
@@ -1162,6 +1153,23 @@ function curRender(data) {
   }
 
   body.innerHTML = html;
+
+  // 추천도서 표지 비동기 로드
+  topRecs.forEach((b, i) => {
+    const query = `${b.title} ${b.author}`;
+    getCover(query, '').then(url => {
+      if (!url) return;
+      const ph = document.getElementById(`curRecPh${i}`);
+      if (!ph) return;
+      const img = document.createElement('img');
+      img.className = 'cur-rec-cover';
+      img.src = url;
+      img.alt = b.title;
+      img.loading = 'lazy';
+      img.onerror = () => img.remove();
+      ph.replaceWith(img);
+    });
+  });
 }
 
 function curGoPage(p) { CUR.page=p; curFetch(); }
