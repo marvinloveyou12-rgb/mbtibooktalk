@@ -501,6 +501,107 @@ img{max-width:100%}
   font-size:.8rem;font-weight:700;flex-shrink:0;border:none;cursor:pointer;transition:background .15s;
 }
 .cover-add-btn:hover{background:var(--green-d)}.cover-add-btn:disabled{background:#ccc;cursor:default}
+
+/* ── 도서관 큐레이션 ── */
+.cur-search-box{
+  display:flex;max-width:100%;
+  border:2px solid #6366F1;border-radius:50px;
+  overflow:hidden;background:var(--white);
+  box-shadow:0 2px 12px rgba(99,102,241,.15);margin-bottom:14px;
+}
+.cur-search-box input{
+  flex:1;border:none;outline:none;
+  padding:13px 18px;font-size:.97rem;
+  color:var(--dark);background:transparent;font-family:inherit;
+}
+.cur-search-box button{
+  background:#6366F1;color:#fff;border:none;
+  padding:13px 22px;font-size:.9rem;font-weight:700;
+  cursor:pointer;transition:background .2s;white-space:nowrap;
+}
+.cur-search-box button:hover{background:#4F46E5}
+.cur-tags{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:20px;align-items:center}
+.cur-tag-lbl{font-size:.75rem;color:var(--gray)}
+.cur-tag{
+  border:1.5px solid #E5E7EB;background:var(--white);
+  border-radius:20px;padding:4px 12px;font-size:.78rem;
+  cursor:pointer;transition:all .15s;font-family:inherit;
+}
+.cur-tag:hover{border-color:#6366F1;color:#6366F1}
+.cur-topic-badge{
+  display:flex;align-items:center;gap:14px;
+  background:var(--white);border-radius:16px;
+  padding:14px 18px;box-shadow:0 2px 12px rgba(0,0,0,.07);
+  border-left:5px solid #6366F1;margin-bottom:16px;
+}
+.cur-topic-code{font-size:1.8rem;font-weight:800;opacity:.18;min-width:32px}
+.cur-topic-info{display:flex;flex-direction:column;gap:2px}
+.cur-topic-label{font-size:.7rem;color:var(--gray);text-transform:uppercase;letter-spacing:.05em}
+.cur-topic-name{font-size:1.25rem;font-weight:800}
+.cur-topic-sub{font-size:.78rem;color:var(--gray)}
+.cur-section-title{
+  font-weight:800;font-size:.97rem;margin:20px 0 12px;
+  display:flex;align-items:center;gap:7px;
+}
+.cur-section-badge{
+  font-size:.7rem;background:#EEF2FF;color:#6366F1;
+  border-radius:12px;padding:2px 8px;font-weight:700;
+}
+.cur-saseo-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:4px}
+.cur-rec-card{
+  background:var(--white);border-radius:14px;overflow:hidden;
+  box-shadow:0 2px 8px rgba(0,0,0,.06);
+}
+.cur-rec-cover{
+  width:100%;aspect-ratio:3/4;object-fit:cover;
+  background:#EEF2FF;display:block;
+}
+.cur-rec-ph{
+  width:100%;aspect-ratio:3/4;
+  background:linear-gradient(135deg,#EEF2FF,#DDD6FE);
+  display:flex;align-items:center;justify-content:center;font-size:2rem;
+}
+.cur-rec-body{padding:10px 11px 13px}
+.cur-rec-title{
+  font-weight:700;font-size:.8rem;line-height:1.4;margin-bottom:4px;
+  display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;
+}
+.cur-rec-author{font-size:.72rem;color:var(--gray);margin-bottom:6px}
+.cur-rec-cat{font-size:.68rem;background:#F0FDF4;color:#16A34A;border-radius:4px;padding:2px 6px}
+.cur-rec-txt{
+  font-size:.72rem;color:#777;line-height:1.45;margin-top:6px;
+  display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;
+}
+.cur-search-item{
+  background:var(--white);border-radius:12px;padding:13px 15px;
+  margin-bottom:8px;box-shadow:0 1px 6px rgba(0,0,0,.05);
+  text-decoration:none;color:inherit;display:block;transition:transform .12s;
+}
+.cur-search-item:hover{transform:translateY(-2px)}
+.cur-si-title{font-weight:700;font-size:.88rem;color:#1E3A5F;margin-bottom:5px}
+.cur-si-meta{display:flex;flex-wrap:wrap;gap:10px;font-size:.73rem;color:var(--gray)}
+.cur-si-kdc{
+  font-size:.68rem;background:#EEF2FF;color:#6366F1;
+  border-radius:4px;padding:2px 7px;margin-top:5px;display:inline-block;
+}
+.cur-pagination{
+  display:flex;justify-content:center;gap:5px;margin:16px 0 8px;flex-wrap:wrap;
+}
+.cur-pg-btn{
+  width:32px;height:32px;border:1.5px solid #E5E7EB;
+  background:var(--white);border-radius:8px;font-size:.82rem;
+  cursor:pointer;transition:all .15s;display:flex;
+  align-items:center;justify-content:center;
+}
+.cur-pg-btn:hover{border-color:#6366F1;color:#6366F1}
+.cur-pg-btn.active{background:#6366F1;color:#fff;border-color:#6366F1}
+.cur-pg-btn:disabled{opacity:.4;cursor:not-allowed}
+.cur-server-warn{
+  background:#FFF7ED;border:1.5px solid #FED7AA;border-radius:12px;
+  padding:16px;text-align:center;color:#92400E;margin-bottom:16px;
+  font-size:.85rem;line-height:1.6;
+}
+.cur-total{font-size:.78rem;color:var(--gray);margin-left:auto}
 </style>
 </head>
 <body>
@@ -520,11 +621,12 @@ img{max-width:100%}
 </header>
 
 <!-- ── PAGES ── -->
-<div id="pg-landing" class="page active"></div>
-<div id="pg-test"    class="page"></div>
-<div id="pg-select"  class="page"></div>
-<div id="pg-room"    class="page"></div>
-<div id="pg-detail"  class="page"></div>
+<div id="pg-landing"  class="page active"></div>
+<div id="pg-test"     class="page"></div>
+<div id="pg-select"   class="page"></div>
+<div id="pg-room"     class="page"></div>
+<div id="pg-detail"   class="page"></div>
+<div id="pg-curation" class="page"></div>
 
 <!-- FAB -->
 <button class="fab hidden" id="fab" onclick="nav('room',{tab:'search'})">+</button>
@@ -811,7 +913,169 @@ function renderPage() {
   else if(state.page==='select') renderSelect();
   else if(state.page==='room') renderRoom();
   else if(state.page==='detail') renderDetail();
+  else if(state.page==='curation') renderCuration();
 }
+
+/* ══════════════════════════════════════════
+   PAGE: CURATION  (국립중앙도서관 사서 추천)
+   ══════════════════════════════════════════ */
+const CUR = {
+  keyword: '',
+  page: 1,
+  loading: false,
+  API_BASE: 'http://localhost:8000',
+  KDC_MAP: {
+    '0':{'name':'총류','color':'#6B7280'},
+    '1':{'name':'철학','color':'#8B5CF6'},
+    '2':{'name':'종교','color':'#F59E0B'},
+    '3':{'name':'사회과학','color':'#3B82F6'},
+    '4':{'name':'자연과학','color':'#10B981'},
+    '5':{'name':'기술과학','color':'#EF4444'},
+    '6':{'name':'예술','color':'#EC4899'},
+    '7':{'name':'언어','color':'#14B8A6'},
+    '8':{'name':'문학','color':'#F97316'},
+    '9':{'name':'역사','color':'#84CC16'},
+  }
+};
+
+function renderCuration() {
+  document.getElementById('pg-curation').innerHTML=`
+  <div style="background:linear-gradient(135deg,#6366F1,#8B5CF6);padding:28px 24px 24px;color:#fff;border-radius:0 0 24px 24px">
+    <div style="font-size:2.2rem;margin-bottom:8px">🏛️</div>
+    <div style="font-family:'Black Han Sans',sans-serif;font-size:1.6rem;margin-bottom:6px">국립도서관 큐레이션</div>
+    <div style="font-size:.87rem;opacity:.9;line-height:1.55">사서가 추천하는 도서 + 소장자료 통합 검색<br>국립중앙도서관 Open API 연동</div>
+  </div>
+  <div class="inner" style="padding-top:20px">
+    <form id="curForm" onsubmit="curSearch(event)">
+      <div class="cur-search-box">
+        <input id="curInput" type="text" placeholder="주제 또는 키워드 입력  (예: 철학, 인공지능, 경제...)" autocomplete="off"/>
+        <button type="submit">검색</button>
+      </div>
+    </form>
+    <div class="cur-tags">
+      <span class="cur-tag-lbl">추천</span>
+      ${['인공지능','철학','경제','문학','역사','환경','심리학','건축'].map(t=>`<button class="cur-tag" onclick="curQuick('${t}')">${t}</button>`).join('')}
+    </div>
+    <div id="curBody"></div>
+  </div>`;
+}
+
+async function curSearch(e) {
+  if(e) e.preventDefault();
+  const kwd = document.getElementById('curInput').value.trim();
+  if(!kwd) return;
+  CUR.keyword = kwd;
+  CUR.page = 1;
+  await curFetch();
+}
+
+function curQuick(kwd) {
+  document.getElementById('curInput').value = kwd;
+  CUR.keyword = kwd;
+  CUR.page = 1;
+  curFetch();
+}
+
+async function curFetch() {
+  const body = document.getElementById('curBody');
+  if(!body) return;
+  body.innerHTML=`<div style="text-align:center;padding:48px 0;color:var(--gray)"><div style="font-size:2rem;margin-bottom:12px">🔄</div>도서 정보를 불러오는 중...</div>`;
+
+  try {
+    const url = `${CUR.API_BASE}/api/analyze?keyword=${encodeURIComponent(CUR.keyword)}&page=${CUR.page}&page_size=10`;
+    const res = await fetch(url, {signal: AbortSignal.timeout(12000)});
+    if(!res.ok) throw new Error(`서버 오류 (${res.status})`);
+    const data = await res.json();
+    curRender(data);
+  } catch(err) {
+    const isConn = err.name==='TypeError' || err.name==='AbortError';
+    body.innerHTML=`
+      <div class="cur-server-warn">
+        <div style="font-size:1.8rem;margin-bottom:8px">⚠️</div>
+        <strong>로컬 서버를 먼저 실행해주세요</strong><br><br>
+        터미널에서 아래 명령어를 실행한 후 다시 검색하세요:<br>
+        <code style="display:inline-block;background:#FEF3C7;padding:6px 12px;border-radius:8px;margin-top:8px;font-size:.82rem">
+          cd ~/mbtibooktalk/server && python3 -m uvicorn main:app --port 8000
+        </code>
+        ${isConn?'':`<br><br><span style="color:#DC2626">${err.message}</span>`}
+      </div>`;
+  }
+}
+
+function curRender(data) {
+  const body = document.getElementById('curBody');
+  const kdc = data.kdc;
+  const color = CUR.KDC_MAP[kdc.code]?.color || '#6366F1';
+
+  let html = `
+    <div class="cur-topic-badge" style="border-left-color:${color}">
+      <div class="cur-topic-code" style="color:${color}">${kdc.code??'?'}</div>
+      <div class="cur-topic-info">
+        <span class="cur-topic-label">KDC 주제 분류</span>
+        <span class="cur-topic-name" style="color:${color}">${kdc.name}</span>
+        <span class="cur-topic-sub">사서추천 카테고리: ${kdc.dr_name||'-'}</span>
+      </div>
+    </div>`;
+
+  // 사서 추천도서
+  const recs = (data.recommendations||[]).filter(b=>b.title&&b.title!=='-');
+  html += `<div class="cur-section-title">📚 사서 추천도서 <span class="cur-section-badge">${kdc.dr_name||''}</span></div>`;
+  if(recs.length) {
+    html += `<div class="cur-saseo-grid">`;
+    recs.forEach(b => {
+      html += `<div class="cur-rec-card">
+        ${b.image
+          ? `<img class="cur-rec-cover" src="${_e(b.image)}" alt="${_e(b.title)}" loading="lazy" onerror="this.style.display='none'">`
+          : `<div class="cur-rec-ph">📖</div>`}
+        <div class="cur-rec-body">
+          <div class="cur-rec-title">${_e(b.title)}</div>
+          <div class="cur-rec-author">${_e(b.author)}</div>
+          ${b.category?`<span class="cur-rec-cat">${_e(b.category)}</span>`:''}
+          ${b.content?`<div class="cur-rec-txt">${_e(b.content)}</div>`:''}
+        </div>
+      </div>`;
+    });
+    html += `</div>`;
+  } else {
+    html += `<div style="text-align:center;padding:28px;color:var(--gray);background:var(--white);border-radius:12px;margin-bottom:8px">추천 데이터가 없습니다</div>`;
+  }
+
+  // 소장자료 검색결과
+  const pg = data.pagination;
+  const books = data.search_results||[];
+  html += `<div class="cur-section-title">🔍 소장자료 검색결과
+    <span class="cur-total">${pg.total?pg.total.toLocaleString()+'건':''}</span>
+  </div>`;
+  books.forEach(b => {
+    const href = b.detail_link||'#';
+    html += `<a class="cur-search-item" href="${_e(href)}" target="_blank" rel="noopener">
+      <div class="cur-si-title">${_e(b.title)}</div>
+      <div class="cur-si-meta">
+        <span>${_e(b.author)}</span>
+        <span>${_e(b.publisher)}</span>
+        <span>${_e(b.year)}</span>
+      </div>
+      ${b.kdc_name&&b.kdc_name!=='-'?`<span class="cur-si-kdc">${_e(b.kdc_name)}</span>`:''}
+    </a>`;
+  });
+
+  // 페이지네이션
+  if(pg.total_pages > 1) {
+    const W=5, half=Math.floor(W/2);
+    let s=Math.max(1,pg.page-half), en=Math.min(pg.total_pages,s+W-1);
+    if(en-s<W-1) s=Math.max(1,en-W+1);
+    html += `<div class="cur-pagination">
+      <button class="cur-pg-btn" onclick="curGoPage(${pg.page-1})" ${pg.page<=1?'disabled':''}>‹</button>`;
+    for(let p=s;p<=en;p++) html+=`<button class="cur-pg-btn${p===pg.page?' active':''}" onclick="curGoPage(${p})">${p}</button>`;
+    html += `<button class="cur-pg-btn" onclick="curGoPage(${pg.page+1})" ${pg.page>=pg.total_pages?'disabled':''}>›</button>
+    </div>`;
+  }
+
+  body.innerHTML = html;
+}
+
+function curGoPage(p) { CUR.page=p; curFetch(); }
+function _e(s){ if(!s)return''; return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 
 /* ══════════════════════════════════════════
    PAGE: LANDING
@@ -842,6 +1106,14 @@ function renderLanding() {
         <div class="btn-text">
           <span class="btn-line1">결과를 이미 알고 있다면</span>
           <span class="btn-line2">나는 MBTI를 알고 있어요!</span>
+        </div>
+        <span class="btn-arr">›</span>
+      </button>
+      <button class="main-btn" style="background:linear-gradient(135deg,#6366F1,#8B5CF6)" onclick="nav('curation')">
+        <div class="btn-icon">🏛️</div>
+        <div class="btn-text">
+          <span class="btn-line1">국립중앙도서관 사서 추천</span>
+          <span class="btn-line2">주제별 도서 큐레이션</span>
         </div>
         <span class="btn-arr">›</span>
       </button>
