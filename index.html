@@ -1077,7 +1077,7 @@ async function curFetch() {
         <strong>로컬 서버를 먼저 실행해주세요</strong><br><br>
         터미널에서 아래 명령어를 실행한 후 다시 검색하세요:<br>
         <code style="display:inline-block;background:#FEF3C7;padding:6px 12px;border-radius:8px;margin-top:8px;font-size:.82rem">
-          cd ~/mbtibooktalk/server && python3 -m uvicorn main:app --port 8000
+          cd ~/mbtibooktalk/server && ./run.sh
         </code>
         ${isConn?'':`<br><br><span style="color:#DC2626">${err.message}</span>`}
       </div>`;
@@ -1230,7 +1230,7 @@ async function libCheckStatus() {
       <div class="lib-crawl-title">⚠️ 로컬 서버 연결 필요</div>
       <div class="lib-crawl-desc">터미널에서 서버를 먼저 실행해주세요:<br>
         <code style="background:#FEF3C7;padding:4px 10px;border-radius:6px;display:inline-block;margin-top:6px;font-size:.8rem">
-          cd ~/mbtibooktalk/server && python3 -m uvicorn main:app --port 8000
+          cd ~/mbtibooktalk/server && ./run.sh
         </code>
       </div>
     </div>`;
@@ -1304,7 +1304,7 @@ async function libAsk(e) {
     body.innerHTML=`<div class="lib-crawl-card">
       <div class="lib-crawl-title">${isConn?'⚠️ 서버 연결 실패':'⚠️ 오류 발생'}</div>
       <div class="lib-crawl-desc">${isConn
-        ? '로컬 서버가 실행 중인지 확인해주세요.<br><code style="background:#FEF3C7;padding:4px 8px;border-radius:6px;font-size:.8rem">cd ~/mbtibooktalk/server && python3 -m uvicorn main:app --port 8000</code>'
+        ? '로컬 서버가 실행 중인지 확인해주세요.<br><code style="background:#FEF3C7;padding:4px 8px;border-radius:6px;font-size:.8rem">cd ~/mbtibooktalk/server && ./run.sh</code>'
         : _e(err.message)
       }</div>
     </div>`;
