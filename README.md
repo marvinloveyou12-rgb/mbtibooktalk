@@ -1,3 +1,12 @@
+---
+title: Mbtibooktalk
+emoji: 📚
+colorFrom: blue
+colorTo: green
+sdk: docker
+pinned: false
+---
+
 # 📚 MBTI Book Talk
 
 > 같은 MBTI끼리 함께 나누는 책이야기 — MBTI 유형별 도서 추천 커뮤니티 웹앱
