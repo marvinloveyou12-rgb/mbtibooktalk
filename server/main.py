@@ -189,6 +189,7 @@ def parse_saseo_xml(xml_text: str) -> list:
         items = []
         for item in root.findall(".//item"):
             image = item.findtext("mokchFilePath") or item.findtext("recomfilepath") or ""
+            image = image.strip().replace("http://", "https://")
             content = strip_html(item.findtext("recomcontens") or "")
             items.append({
                 "recom_no":  item.findtext("recomNo"),
