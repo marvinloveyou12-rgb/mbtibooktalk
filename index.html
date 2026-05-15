@@ -2194,26 +2194,21 @@ function _participantBadge(type){
 /* ══════════════════════════════════════════
    ONLINE TRACKER (세션 기반 실시간 접속자)
    ══════════════════════════════════════════ */
-function _updateOnlineSessions() {
-  const uid = getUserKey();
-  const key = '_online_sessions';
-  const sessions = lsGet(key, {});
-  const now = Date.now();
-  sessions[uid] = now;
-  Object.keys(sessions).forEach(k => {
-    if (now - sessions[k] > 5 * 60 * 1000) delete sessions[k];
-  });
-  lsSet(key, sessions);
-  return Object.keys(sessions).length;
+const _PRESENCE_SID = Math.random().toString(36).slice(2);
+const _PRESENCE_BASE = window.location.hostname === 'localhost' ? 'http://localhost:8000' : '';
+
+async function _pingPresence() {
+  try {
+    const r = await fetch(`${_PRESENCE_BASE}/api/presence/ping?sid=${_PRESENCE_SID}`, {method:'POST'});
+    if (!r.ok) return;
+    const d = await r.json();
+    const el = document.getElementById('onlineCount');
+    if (el) el.textContent = d.online;
+  } catch {}
 }
 function startOnlineTracker() {
-  const refresh = () => {
-    const n = _updateOnlineSessions();
-    const el = document.getElementById('onlineCount');
-    if (el) el.textContent = n;
-  };
-  refresh();
-  setInterval(refresh, 30000);
+  _pingPresence();
+  setInterval(_pingPresence, 60000);
 }
 
 /* ══════════════════════════════════════════

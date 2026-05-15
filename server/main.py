@@ -18,6 +18,11 @@ from .claude_chat import get_librarian_response
 
 app = FastAPI(title="도서 큐레이션 API")
 
+# 실시간 접속자 추적 (세션ID → 마지막 ping 시각)
+import time as _time
+_presence: dict[str, float] = {}
+_PRESENCE_TTL = 90  # 90초 이상 ping 없으면 오프라인 처리
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -87,6 +92,23 @@ async def crawl_start():
 
     asyncio.create_task(run_crawl(rebuild_index_fn=_rebuild))
     return {"status": "started", **crawl_state}
+
+
+@app.post("/api/presence/ping")
+async def presence_ping(sid: str = Query(...)):
+    now = _time.time()
+    _presence[sid] = now
+    cutoff = now - _PRESENCE_TTL
+    stale = [k for k, v in _presence.items() if v < cutoff]
+    for k in stale:
+        del _presence[k]
+    return {"online": len(_presence)}
+
+
+@app.get("/api/presence/count")
+async def presence_count():
+    cutoff = _time.time() - _PRESENCE_TTL
+    return {"online": sum(1 for v in _presence.values() if v >= cutoff)}
 
 
 @app.get("/api/img-proxy")
