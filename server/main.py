@@ -25,8 +25,13 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# DB 초기화 (앱 시작 시)
+# DB 초기화 및 인덱스 복구 (앱 시작 시)
 init_db()
+import threading as _threading
+from .search_engine import build_index as _build_index
+from .database import count_items as _count_items
+if _count_items() > 0:
+    _threading.Thread(target=_build_index, daemon=True).start()
 
 
 # ── 사서 Q&A 엔드포인트 ─────────────────────────────────────

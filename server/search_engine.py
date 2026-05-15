@@ -99,19 +99,36 @@ def vector_search(query: str, top_k: int = 10) -> list[dict]:
 
 
 def keyword_search(query: str, top_k: int = 10) -> list[dict]:
-    # Escape FTS5 special chars
-    safe_q = query.replace('"', '""')
-    with get_conn() as conn:
-        rows = conn.execute("""
-            SELECT q.id, q.rec_key, q.question, q.answer, q.subject,
-                   q.answer_date, q.answer_lib,
-                   bm25(qa_fts) AS score
-            FROM qa_fts
-            JOIN qa_items q ON qa_fts.rowid = q.id
-            WHERE qa_fts MATCH ?
-            ORDER BY score
-            LIMIT ?
-        """, (safe_q, top_k)).fetchall()
+    SQL = """
+        SELECT q.id, q.rec_key, q.question, q.answer, q.subject,
+               q.answer_date, q.answer_lib, bm25(qa_fts) AS score
+        FROM qa_fts
+        JOIN qa_items q ON qa_fts.rowid = q.id
+        WHERE qa_fts MATCH ?
+        ORDER BY score
+        LIMIT ?
+    """
+    def _run(term):
+        try:
+            with get_conn() as conn:
+                return conn.execute(SQL, (term, top_k)).fetchall()
+        except Exception:
+            return []
+
+    # 1차: 전체 쿼리
+    rows = _run(query.replace('"', '""'))
+
+    # 2차: 단어별 OR 검색 (2글자 이상)
+    if not rows:
+        words = [w for w in query.split() if len(w) >= 2]
+        seen, rows = set(), []
+        for word in words[:5]:
+            for r in _run(word):
+                if r["id"] not in seen:
+                    seen.add(r["id"])
+                    rows.append(r)
+        rows = rows[:top_k]
+
     return [{**dict(r), "score": abs(float(r["score"])), "search_type": "keyword"}
             for r in rows]
 
