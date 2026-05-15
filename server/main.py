@@ -29,9 +29,14 @@ app.add_middleware(
 init_db()
 import threading as _threading
 from .search_engine import build_index as _build_index
-from .database import count_items as _count_items
-if _count_items() > 0:
-    _threading.Thread(target=_build_index, daemon=True).start()
+from .database import count_items as _count_items, seed_from_json as _seed
+
+def _startup():
+    _seed()
+    if _count_items() > 0:
+        _build_index()
+
+_threading.Thread(target=_startup, daemon=True).start()
 
 
 # ── 사서 Q&A 엔드포인트 ─────────────────────────────────────

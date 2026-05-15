@@ -1,7 +1,10 @@
 import sqlite3
+import json
+import gzip
 from pathlib import Path
 
-DB_PATH = Path(__file__).parent / "nl_qa.db"
+DB_PATH   = Path(__file__).parent / "nl_qa.db"
+SEED_PATH = Path(__file__).parent / "nl_qa_data.json.gz"
 
 
 def get_conn() -> sqlite3.Connection:
@@ -50,6 +53,22 @@ def init_db() -> None:
         END""")
 
         conn.commit()
+
+
+def seed_from_json() -> int:
+    """DB가 비어있으면 json.gz 시드 파일에서 데이터를 일괄 삽입. 삽입 건수 반환."""
+    if not SEED_PATH.exists() or count_items() > 0:
+        return 0
+    with gzip.open(SEED_PATH, "rt", encoding="utf-8") as f:
+        data = json.load(f)
+    with get_conn() as conn:
+        conn.executemany("""
+            INSERT OR IGNORE INTO qa_items
+                (rec_key, question, answer, subject, answer_date, answer_lib)
+            VALUES (:rec_key, :question, :answer, :subject, :answer_date, :answer_lib)
+        """, data)
+        conn.commit()
+    return len(data)
 
 
 def upsert_item(rec_key: str, question: str, answer: str, subject: str,
