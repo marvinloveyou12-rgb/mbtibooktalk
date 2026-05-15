@@ -1005,7 +1005,7 @@ const CUR = {
   keyword: '',
   page: 1,
   loading: false,
-  API_BASE: 'http://localhost:8000',
+  API_BASE: window.location.hostname === 'localhost' ? 'http://localhost:8000' : '',
   KDC_MAP: {
     '0':{'name':'총류','color':'#6B7280'},
     '1':{'name':'철학','color':'#8B5CF6'},
@@ -1163,7 +1163,7 @@ function _e(s){ if(!s)return''; return String(s).replace(/&/g,'&amp;').replace(/
    PAGE: LIBRARIAN  (사서에게 물어보세요 AI 검색)
    ══════════════════════════════════════════ */
 const LIB = {
-  API_BASE: 'http://localhost:8000',
+  API_BASE: window.location.hostname === 'localhost' ? 'http://localhost:8000' : '',
   pollTimer: null,
 };
 
