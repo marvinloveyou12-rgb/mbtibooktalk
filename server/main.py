@@ -1,23 +1,98 @@
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel
 import httpx
 import xml.etree.ElementTree as ET
+import asyncio
 import os
 from typing import Optional, Tuple
 from dotenv import load_dotenv
 
 load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), '.env'))
 
+from .database import init_db, count_items
+from .crawler import crawl_state, run_crawl
+from .search_engine import hybrid_search, build_index, invalidate_cache
+from .claude_chat import get_librarian_response
+
 app = FastAPI(title="도서 큐레이션 API")
 
-# GitHub Pages 또는 file:// 에서 호출 가능하도록 CORS 허용
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
-    allow_methods=["GET"],
+    allow_methods=["GET", "POST"],
     allow_headers=["*"],
 )
+
+# DB 초기화 (앱 시작 시)
+init_db()
+
+
+# ── 사서 Q&A 엔드포인트 ─────────────────────────────────────
+
+class AskRequest(BaseModel):
+    query: str
+    top_k: int = 8
+
+
+@app.post("/api/librarian/ask")
+async def librarian_ask(req: AskRequest):
+    if not req.query.strip():
+        raise HTTPException(status_code=400, detail="질문을 입력해주세요.")
+
+    results = await asyncio.get_event_loop().run_in_executor(
+        None, hybrid_search, req.query, req.top_k
+    )
+    chat = await asyncio.get_event_loop().run_in_executor(
+        None, get_librarian_response, req.query, results
+    )
+
+    return {
+        "query": req.query,
+        "response": chat["response"],
+        "used_claude": chat["used_claude"],
+        "source_count": chat["source_count"],
+        "sources": [{
+            "rec_key": r.get("rec_key"),
+            "question": r.get("question", "")[:150],
+            "answer": r.get("answer", "")[:400],
+            "subject": r.get("subject", ""),
+            "answer_date": r.get("answer_date", ""),
+            "answer_lib": r.get("answer_lib", ""),
+            "search_type": r.get("search_type", ""),
+            "score": round(r.get("combined_score", r.get("score", 0)), 4),
+        } for r in results]
+    }
+
+
+@app.post("/api/crawl/start")
+async def crawl_start():
+    if crawl_state["running"]:
+        return {"status": "already_running", **crawl_state}
+
+    def _rebuild():
+        invalidate_cache()
+        build_index()
+
+    asyncio.create_task(run_crawl(rebuild_index_fn=_rebuild))
+    return {"status": "started", **crawl_state}
+
+
+@app.get("/api/crawl/status")
+async def crawl_status():
+    return {"db_count": count_items(), **crawl_state}
+
+
+@app.get("/api/librarian/stats")
+async def librarian_stats():
+    return {
+        "db_count": count_items(),
+        "crawl_stage": crawl_state["stage"],
+        "crawl_running": crawl_state["running"],
+    }
+
+
 
 API_KEY = os.getenv("NL_API_KEY")
 SEARCH_URL = "https://www.nl.go.kr/NL/search/openApi/search.do"

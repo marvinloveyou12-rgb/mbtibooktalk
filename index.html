@@ -602,6 +602,86 @@ img{max-width:100%}
   font-size:.85rem;line-height:1.6;
 }
 .cur-total{font-size:.78rem;color:var(--gray);margin-left:auto}
+
+/* ── 사서 자연어 검색 ── */
+.lib-search-box{
+  display:flex;border:2px solid #0F766E;border-radius:16px;
+  overflow:hidden;background:var(--white);
+  box-shadow:0 2px 14px rgba(15,118,110,.15);margin-bottom:10px;
+}
+.lib-search-box textarea{
+  flex:1;border:none;outline:none;
+  padding:14px 18px;font-size:.95rem;
+  color:var(--dark);background:transparent;font-family:inherit;
+  resize:none;min-height:56px;max-height:120px;line-height:1.5;
+}
+.lib-search-box button{
+  background:#0F766E;color:#fff;border:none;
+  padding:0 22px;font-size:.9rem;font-weight:700;
+  cursor:pointer;transition:background .2s;white-space:nowrap;align-self:stretch;
+}
+.lib-search-box button:hover{background:#0D9488}
+.lib-tags{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:20px;align-items:center}
+.lib-tag{border:1.5px solid #E5E7EB;background:var(--white);border-radius:20px;
+  padding:4px 12px;font-size:.78rem;cursor:pointer;transition:all .15s;font-family:inherit}
+.lib-tag:hover{border-color:#0F766E;color:#0F766E}
+.lib-response-card{
+  background:linear-gradient(135deg,#F0FDFA,#ECFDF5);
+  border:1.5px solid #99F6E4;border-radius:18px;
+  padding:20px;margin-bottom:20px;
+  box-shadow:0 2px 12px rgba(15,118,110,.08);
+}
+.lib-resp-header{display:flex;align-items:center;gap:10px;margin-bottom:14px}
+.lib-resp-icon{font-size:1.8rem}
+.lib-resp-title{font-weight:800;font-size:1rem;color:#0F766E}
+.lib-resp-badge{
+  font-size:.68rem;background:#CCFBF1;color:#0F766E;
+  border-radius:10px;padding:2px 8px;font-weight:700;margin-left:auto;
+}
+.lib-resp-text{
+  font-size:.9rem;line-height:1.8;color:#1C2B2A;
+  white-space:pre-wrap;word-break:break-word;
+}
+.lib-sources-title{
+  font-weight:700;font-size:.88rem;color:var(--gray);
+  margin:18px 0 10px;display:flex;align-items:center;gap:6px;
+}
+.lib-source-card{
+  background:var(--white);border-radius:12px;padding:13px 15px;
+  margin-bottom:8px;border-left:3px solid #0F766E;
+  box-shadow:0 1px 5px rgba(0,0,0,.05);
+}
+.lib-src-q{font-weight:700;font-size:.85rem;color:#1C4B45;margin-bottom:5px}
+.lib-src-a{font-size:.78rem;color:var(--gray);line-height:1.5;
+  display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+.lib-src-meta{display:flex;gap:8px;margin-top:6px;flex-wrap:wrap}
+.lib-src-badge{font-size:.68rem;border-radius:6px;padding:2px 7px;font-weight:600}
+.lib-src-subj{background:#F0FDFA;color:#0F766E}
+.lib-src-type{background:#EEF2FF;color:#6366F1}
+.lib-crawl-card{
+  background:#FFF7ED;border:1.5px solid #FED7AA;border-radius:14px;
+  padding:18px;text-align:center;margin-bottom:16px;
+}
+.lib-crawl-title{font-weight:700;font-size:.95rem;color:#92400E;margin-bottom:8px}
+.lib-crawl-desc{font-size:.82rem;color:#78350F;line-height:1.6;margin-bottom:14px}
+.lib-crawl-btn{
+  background:#0F766E;color:#fff;border:none;border-radius:10px;
+  padding:10px 24px;font-size:.9rem;font-weight:700;
+  cursor:pointer;transition:background .15s;font-family:inherit;
+}
+.lib-crawl-btn:hover{background:#0D9488}
+.lib-crawl-btn:disabled{background:#ccc;cursor:not-allowed}
+.lib-progress{
+  background:#F0FDFA;border:1px solid #99F6E4;border-radius:10px;
+  padding:12px 16px;font-size:.82rem;color:#0F766E;margin-bottom:12px;
+}
+.lib-progress-bar{
+  height:6px;background:#E5E7EB;border-radius:3px;overflow:hidden;margin-top:8px;
+}
+.lib-progress-fill{height:100%;background:#0F766E;border-radius:3px;transition:width .3s}
+.lib-empty{text-align:center;padding:48px 0;color:var(--gray)}
+.lib-loading{text-align:center;padding:40px 0;color:var(--gray)}
+.lib-loading .spinner{border-top-color:#0F766E}
 </style>
 </head>
 <body>
@@ -626,7 +706,8 @@ img{max-width:100%}
 <div id="pg-select"   class="page"></div>
 <div id="pg-room"     class="page"></div>
 <div id="pg-detail"   class="page"></div>
-<div id="pg-curation" class="page"></div>
+<div id="pg-curation"   class="page"></div>
+<div id="pg-librarian" class="page"></div>
 
 <!-- FAB -->
 <button class="fab hidden" id="fab" onclick="nav('room',{tab:'search'})">+</button>
@@ -914,6 +995,7 @@ function renderPage() {
   else if(state.page==='room') renderRoom();
   else if(state.page==='detail') renderDetail();
   else if(state.page==='curation') renderCuration();
+  else if(state.page==='librarian') renderLibrarian();
 }
 
 /* ══════════════════════════════════════════
@@ -1078,6 +1160,197 @@ function curGoPage(p) { CUR.page=p; curFetch(); }
 function _e(s){ if(!s)return''; return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 
 /* ══════════════════════════════════════════
+   PAGE: LIBRARIAN  (사서에게 물어보세요 AI 검색)
+   ══════════════════════════════════════════ */
+const LIB = {
+  API_BASE: 'http://localhost:8000',
+  pollTimer: null,
+};
+
+function renderLibrarian() {
+  document.getElementById('pg-librarian').innerHTML=`
+  <div style="background:linear-gradient(135deg,#0F766E,#0D9488);padding:28px 24px 24px;color:#fff;border-radius:0 0 24px 24px">
+    <div style="font-size:2.2rem;margin-bottom:8px">📖</div>
+    <div style="font-family:'Black Han Sans',sans-serif;font-size:1.6rem;margin-bottom:6px">사서에게 물어보세요</div>
+    <div style="font-size:.87rem;opacity:.9;line-height:1.55">국립중앙도서관 Q&A DB + Claude AI 사서<br>자연어로 무엇이든 물어보세요</div>
+  </div>
+  <div class="inner" style="padding-top:20px">
+    <div id="libCrawlStatus"></div>
+    <form id="libForm" onsubmit="libAsk(event)">
+      <div class="lib-search-box">
+        <textarea id="libInput" placeholder="예: 심리적으로 우울할 때 읽을 책 추천해주세요. 또는 환경 문제를 다룬 청소년 도서가 있나요?" rows="2"></textarea>
+        <button type="submit" id="libSubmitBtn">질문하기</button>
+      </div>
+    </form>
+    <div class="lib-tags">
+      <span style="font-size:.75rem;color:var(--gray)">추천 질문</span>
+      ${[
+        '우울할 때 위로가 되는 책',
+        '인공지능 미래 관련 도서',
+        '청소년 진로 추천 도서',
+        '경제 공부 입문서',
+        '한국 근현대사 도서',
+        '환경 문제 관련 책',
+      ].map(t=>`<button class="lib-tag" onclick="libQuick('${t}')">${t}</button>`).join('')}
+    </div>
+    <div id="libBody"></div>
+  </div>`;
+
+  libCheckStatus();
+}
+
+async function libCheckStatus() {
+  const box = document.getElementById('libCrawlStatus');
+  if(!box) return;
+  try {
+    const res = await fetch(`${LIB.API_BASE}/api/librarian/stats`, {signal: AbortSignal.timeout(4000)});
+    if(!res.ok) throw new Error();
+    const d = await res.json();
+
+    if(d.db_count === 0 && !d.crawl_running) {
+      box.innerHTML=`
+        <div class="lib-crawl-card">
+          <div class="lib-crawl-title">📥 지식정보 DB 초기 수집 필요</div>
+          <div class="lib-crawl-desc">
+            국립중앙도서관 사서 Q&A 데이터 <strong>약 5,910건</strong>을 처음 한 번만 수집합니다.<br>
+            수집 후 로컬 DB에 저장되어 빠른 검색이 가능합니다.
+          </div>
+          <button class="lib-crawl-btn" onclick="libStartCrawl(this)">🔄 DB 수집 시작</button>
+        </div>`;
+    } else if(d.crawl_running) {
+      box.innerHTML=`<div class="lib-progress" id="libProgressBox">수집 중... <span id="libProgressMsg"></span>
+        <div class="lib-progress-bar"><div class="lib-progress-fill" id="libProgressFill" style="width:5%"></div></div></div>`;
+      libPollCrawl();
+    } else {
+      box.innerHTML=`<div style="font-size:.78rem;color:#0F766E;margin-bottom:12px;padding:6px 10px;background:#F0FDFA;border-radius:8px">
+        ✅ DB 수집 완료 · <strong>${d.db_count.toLocaleString()}건</strong> · 자연어 검색 가능</div>`;
+    }
+  } catch(e) {
+    box.innerHTML=`<div class="lib-crawl-card">
+      <div class="lib-crawl-title">⚠️ 로컬 서버 연결 필요</div>
+      <div class="lib-crawl-desc">터미널에서 서버를 먼저 실행해주세요:<br>
+        <code style="background:#FEF3C7;padding:4px 10px;border-radius:6px;display:inline-block;margin-top:6px;font-size:.8rem">
+          cd ~/mbtibooktalk/server && python3 -m uvicorn main:app --port 8000
+        </code>
+      </div>
+    </div>`;
+  }
+}
+
+async function libStartCrawl(btn) {
+  btn.disabled = true;
+  btn.textContent = '수집 시작 중...';
+  try {
+    await fetch(`${LIB.API_BASE}/api/crawl/start`, {method:'POST'});
+    document.getElementById('libCrawlStatus').innerHTML=`
+      <div class="lib-progress" id="libProgressBox">수집 시작됨
+        <div class="lib-progress-bar"><div class="lib-progress-fill" id="libProgressFill" style="width:2%"></div></div></div>`;
+    libPollCrawl();
+  } catch(e) {
+    btn.disabled = false;
+    btn.textContent = '🔄 DB 수집 시작';
+  }
+}
+
+function libPollCrawl() {
+  if(LIB.pollTimer) clearInterval(LIB.pollTimer);
+  LIB.pollTimer = setInterval(async () => {
+    try {
+      const res = await fetch(`${LIB.API_BASE}/api/crawl/status`);
+      const d = await res.json();
+      const msgEl = document.getElementById('libProgressMsg');
+      const fillEl = document.getElementById('libProgressFill');
+      const boxEl  = document.getElementById('libProgressBox');
+      if(msgEl) msgEl.textContent = d.message || '';
+      if(fillEl && d.total > 0) fillEl.style.width = Math.round(d.done/d.total*100)+'%';
+      if(!d.crawl_running) {
+        clearInterval(LIB.pollTimer);
+        libCheckStatus();
+      }
+    } catch(e) { clearInterval(LIB.pollTimer); }
+  }, 2500);
+}
+
+function libQuick(q) {
+  const ta = document.getElementById('libInput');
+  if(ta) { ta.value = q; libAsk(); }
+}
+
+async function libAsk(e) {
+  if(e) e.preventDefault();
+  const ta = document.getElementById('libInput');
+  const query = ta ? ta.value.trim() : '';
+  if(!query) return;
+
+  const body = document.getElementById('libBody');
+  const btn  = document.getElementById('libSubmitBtn');
+  if(!body) return;
+
+  body.innerHTML=`<div class="lib-loading"><div class="spinner"></div><p>사서가 자료를 찾는 중...</p></div>`;
+  if(btn) btn.disabled = true;
+
+  try {
+    const res = await fetch(`${LIB.API_BASE}/api/librarian/ask`, {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({query, top_k: 8}),
+      signal: AbortSignal.timeout(30000),
+    });
+    if(!res.ok) throw new Error(`서버 오류 (${res.status})`);
+    const data = await res.json();
+    libRender(data);
+  } catch(err) {
+    const isConn = err.name==='TypeError'||err.name==='AbortError';
+    body.innerHTML=`<div class="lib-crawl-card">
+      <div class="lib-crawl-title">${isConn?'⚠️ 서버 연결 실패':'⚠️ 오류 발생'}</div>
+      <div class="lib-crawl-desc">${isConn
+        ? '로컬 서버가 실행 중인지 확인해주세요.<br><code style="background:#FEF3C7;padding:4px 8px;border-radius:6px;font-size:.8rem">cd ~/mbtibooktalk/server && python3 -m uvicorn main:app --port 8000</code>'
+        : _e(err.message)
+      }</div>
+    </div>`;
+  } finally {
+    if(btn) btn.disabled = false;
+  }
+}
+
+function libRender(data) {
+  const body = document.getElementById('libBody');
+  const claudeBadge = data.used_claude
+    ? '<span class="lib-resp-badge">Claude AI</span>'
+    : '<span class="lib-resp-badge" style="background:#FEF3C7;color:#92400E">기본 요약</span>';
+
+  let html = `
+    <div class="lib-response-card">
+      <div class="lib-resp-header">
+        <span class="lib-resp-icon">📚</span>
+        <span class="lib-resp-title">사서의 답변</span>
+        ${claudeBadge}
+      </div>
+      <div class="lib-resp-text">${_e(data.response)}</div>
+    </div>`;
+
+  if(data.sources && data.sources.length) {
+    html += `<div class="lib-sources-title">📎 참고한 Q&A 자료 <span style="color:#0F766E;font-size:.8rem;font-weight:700">${data.sources.length}건</span></div>`;
+    data.sources.forEach(s => {
+      const typeLabel = s.search_type==='hybrid'?'하이브리드':s.search_type==='vector'?'벡터':'키워드';
+      html += `<div class="lib-source-card">
+        <div class="lib-src-q">${_e(s.question)}</div>
+        <div class="lib-src-a">${_e(s.answer)}</div>
+        <div class="lib-src-meta">
+          ${s.subject?`<span class="lib-src-badge lib-src-subj">${_e(s.subject)}</span>`:''}
+          <span class="lib-src-badge lib-src-type">${typeLabel}</span>
+          ${s.answer_date?`<span style="font-size:.68rem;color:var(--gray)">${_e(s.answer_date)}</span>`:''}
+        </div>
+      </div>`;
+    });
+  } else {
+    html += `<div class="lib-empty"><div style="font-size:2rem;margin-bottom:8px">🔍</div>관련 자료를 찾지 못했습니다.<br>다른 키워드로 시도해보세요.</div>`;
+  }
+
+  body.innerHTML = html;
+}
+
+/* ══════════════════════════════════════════
    PAGE: LANDING
    ══════════════════════════════════════════ */
 function renderLanding() {
@@ -1114,6 +1387,14 @@ function renderLanding() {
         <div class="btn-text">
           <span class="btn-line1">국립중앙도서관 사서 추천</span>
           <span class="btn-line2">주제별 도서 큐레이션</span>
+        </div>
+        <span class="btn-arr">›</span>
+      </button>
+      <button class="main-btn" style="background:linear-gradient(135deg,#0F766E,#0D9488)" onclick="nav('librarian')">
+        <div class="btn-icon">🔍</div>
+        <div class="btn-text">
+          <span class="btn-line1">AI 사서 · 자연어 검색</span>
+          <span class="btn-line2">사서에게 물어보세요 Q&A</span>
         </div>
         <span class="btn-arr">›</span>
       </button>
