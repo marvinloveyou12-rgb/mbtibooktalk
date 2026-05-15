@@ -649,11 +649,15 @@ img{max-width:100%}
 .lib-source-card{
   background:var(--white);border-radius:12px;padding:13px 15px;
   margin-bottom:8px;border-left:3px solid #0F766E;
-  box-shadow:0 1px 5px rgba(0,0,0,.05);
+  box-shadow:0 1px 5px rgba(0,0,0,.05);cursor:pointer;
+  transition:box-shadow .15s;
 }
+.lib-source-card:hover{box-shadow:0 3px 12px rgba(0,0,0,.1)}
 .lib-src-q{font-weight:700;font-size:.85rem;color:#1C4B45;margin-bottom:5px}
 .lib-src-a{font-size:.78rem;color:var(--gray);line-height:1.5;
   display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+.lib-src-a.expanded{-webkit-line-clamp:unset;display:block}
+.lib-src-toggle{font-size:.7rem;color:#0F766E;margin-top:4px;font-weight:600}
 .lib-src-meta{display:flex;gap:8px;margin-top:6px;flex-wrap:wrap}
 .lib-src-badge{font-size:.68rem;border-radius:6px;padding:2px 7px;font-weight:600}
 .lib-src-subj{background:#F0FDFA;color:#0F766E}
@@ -1105,9 +1109,13 @@ function curRender(data) {
   if(recs.length) {
     html += `<div class="cur-saseo-grid">`;
     recs.forEach(b => {
-      html += `<div class="cur-rec-card">
-        ${b.image
-          ? `<img class="cur-rec-cover" src="${_e(b.image)}" alt="${_e(b.title)}" loading="lazy" onerror="this.style.display='none'">`
+      const imgSrc = b.image ? `${CUR.API_BASE}/api/img-proxy?url=${encodeURIComponent(b.image)}` : '';
+      const aladinHref = b.isbn
+        ? `https://www.aladin.co.kr/shop/wproduct.aspx?ISBN=${b.isbn}`
+        : `https://www.aladin.co.kr/search/wsearchresult.aspx?SearchWord=${encodeURIComponent(b.title)}`;
+      html += `<a class="cur-rec-card" href="${aladinHref}" target="_blank" rel="noopener" style="text-decoration:none;display:block">
+        ${imgSrc
+          ? `<img class="cur-rec-cover" src="${imgSrc}" alt="${_e(b.title)}" loading="lazy" onerror="this.style.display='none'">`
           : `<div class="cur-rec-ph">📖</div>`}
         <div class="cur-rec-body">
           <div class="cur-rec-title">${_e(b.title)}</div>
@@ -1115,7 +1123,7 @@ function curRender(data) {
           ${b.category?`<span class="cur-rec-cat">${_e(b.category)}</span>`:''}
           ${b.content?`<div class="cur-rec-txt">${_e(b.content)}</div>`:''}
         </div>
-      </div>`;
+      </a>`;
     });
     html += `</div>`;
   } else {
@@ -1333,9 +1341,10 @@ function libRender(data) {
     html += `<div class="lib-sources-title">📎 참고한 Q&A 자료 <span style="color:#0F766E;font-size:.8rem;font-weight:700">${data.sources.length}건</span></div>`;
     data.sources.forEach(s => {
       const typeLabel = s.search_type==='hybrid'?'하이브리드':s.search_type==='vector'?'벡터':'키워드';
-      html += `<div class="lib-source-card">
+      html += `<div class="lib-source-card" onclick="const a=this.querySelector('.lib-src-a'),t=this.querySelector('.lib-src-toggle');a.classList.toggle('expanded');t.textContent=a.classList.contains('expanded')?'▲ 접기':'▼ 더 보기'">
         <div class="lib-src-q">${_e(s.question)}</div>
         <div class="lib-src-a">${_e(s.answer)}</div>
+        <div class="lib-src-toggle">▼ 더 보기</div>
         <div class="lib-src-meta">
           ${s.subject?`<span class="lib-src-badge lib-src-subj">${_e(s.subject)}</span>`:''}
           <span class="lib-src-badge lib-src-type">${typeLabel}</span>

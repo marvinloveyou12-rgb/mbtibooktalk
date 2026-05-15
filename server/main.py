@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import FastAPI, HTTPException, Query, Response
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
@@ -87,6 +87,18 @@ async def crawl_start():
 
     asyncio.create_task(run_crawl(rebuild_index_fn=_rebuild))
     return {"status": "started", **crawl_state}
+
+
+@app.get("/api/img-proxy")
+async def img_proxy(url: str = Query(...)):
+    """HTTP 이미지를 HTTPS 환경에서 사용하기 위한 프록시."""
+    try:
+        async with httpx.AsyncClient(timeout=8.0, follow_redirects=True) as client:
+            r = await client.get(url)
+        ct = r.headers.get("content-type", "image/jpeg")
+        return Response(content=r.content, media_type=ct)
+    except Exception:
+        raise HTTPException(status_code=404, detail="image not found")
 
 
 @app.get("/api/crawl/status")
