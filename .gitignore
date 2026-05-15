@@ -1,6 +1,4 @@
 server/.env
-server/nl_qa.db
-server/tfidf_cache.pkl
 __pycache__/
 **/__pycache__/
 *.pyc
