@@ -14,7 +14,7 @@ from dotenv import load_dotenv
 
 load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), '.env'))
 
-from .database import init_db, count_items, seed_from_json as _seed
+from .database import init_db, count_items, seed_from_json as _seed, get_conn as _get_conn
 from .database import count_items as _count_items
 from .crawler import crawl_state, run_crawl
 from .search_engine import hybrid_search, build_index, invalidate_cache
@@ -245,7 +245,9 @@ async def librarian_ask(req: AskRequest):
         "source_count": chat["source_count"],
         "cited_indices": chat.get("cited_indices", []),
         "response_mode": chat.get("response_mode", "rag"),
+        "response_tier": chat.get("response_tier", "high"),
         "top_score": chat.get("top_score", 0.0),
+        "norm_score": chat.get("norm_score", 0.0),
         "weights": {
             "vector": float(os.getenv("HYBRID_VECTOR_WEIGHT", "0.7")),
             "keyword": float(os.getenv("HYBRID_KEYWORD_WEIGHT", "0.3")),
@@ -266,6 +268,27 @@ async def librarian_ask(req: AskRequest):
         } for r in results],
         "book_cards": book_cards,
     }
+
+
+class FeedbackRequest(BaseModel):
+    query: str
+    response_tier: str
+    top_score: float = 0.0
+    norm_score: float = 0.0
+    helpful: bool
+
+
+@app.post("/api/librarian/feedback")
+async def librarian_feedback(req: FeedbackRequest):
+    """이용자 피드백 저장 — 임계값 자동 튜닝 데이터 수집용."""
+    with _get_conn() as conn:
+        conn.execute(
+            "INSERT INTO feedback (query, response_tier, top_score, norm_score, helpful) "
+            "VALUES (?, ?, ?, ?, ?)",
+            (req.query[:500], req.response_tier, req.top_score, req.norm_score, int(req.helpful)),
+        )
+        conn.commit()
+    return {"status": "ok"}
 
 
 @app.post("/api/crawl/start")

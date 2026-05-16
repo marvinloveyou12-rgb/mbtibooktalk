@@ -199,7 +199,18 @@ def hybrid_search(query: str, top_k: int = 8) -> list[dict]:
 
 
     merged.sort(key=lambda x: x["combined_score"], reverse=True)
-    return merged[:top_k]
+    merged = merged[:top_k]
+
+    # min-max 정규화 + Top1-Top2 margin 계산
+    if merged:
+        scores = [r["combined_score"] for r in merged]
+        s_min, s_max = min(scores), max(scores)
+        eps = 1e-6
+        for r in merged:
+            r["norm_score"] = (r["combined_score"] - s_min) / (s_max - s_min + eps)
+        merged[0]["margin"] = (scores[0] - scores[1]) if len(scores) >= 2 else scores[0]
+
+    return merged
 
 
 def invalidate_cache() -> None:

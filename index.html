@@ -1354,19 +1354,36 @@ function libRender(data) {
   const wBadge = `<span class="lib-resp-badge" style="background:#EFF6FF;color:#1D4ED8">
     가중치 V${Math.round(w.vector*10)}:K${Math.round(w.keyword*10)}</span>`;
 
-  // 응답 모드 뱃지 (RAG / 일반 지식)
-  const isGeneral = (data.response_mode === 'general');
-  const modeBadge = isGeneral
-    ? '<span class="lib-resp-badge" style="background:#FEF2F2;color:#B91C1C">일반 지식 응답</span>'
-    : '<span class="lib-resp-badge" style="background:#ECFDF5;color:#065F46">RAG · 출처 기반</span>';
+  // 3단계 신뢰도 뱃지 (HIGH/MID/LOW) + 점수 수치
+  const tier = data.response_tier || (data.response_mode === 'general' ? 'low' : 'high');
+  const scoreVal = data.norm_score != null
+    ? `norm:${(data.norm_score*100).toFixed(0)}%`
+    : `score:${(data.top_score||0).toFixed(4)}`;
+  const tierBadge = tier === 'high'
+    ? `<span class="lib-resp-badge" style="background:#ECFDF5;color:#065F46">HIGH · 출처 인용</span>`
+    : tier === 'mid'
+    ? `<span class="lib-resp-badge" style="background:#EFF6FF;color:#1E40AF">MID · 보완 답변</span>`
+    : `<span class="lib-resp-badge" style="background:#FEF2F2;color:#B91C1C">LOW · 일반 안내</span>`;
+  const scoreBadge = `<span class="lib-resp-badge" style="background:#F3F4F6;color:#374151;font-weight:500">${scoreVal}</span>`;
 
-  // 일반 지식 모드일 때 상단 배너
-  const generalNotice = isGeneral
+  // 하위 호환
+  const isGeneral = (tier === 'low');
+
+  // 신뢰도 구간별 상단 배너
+  const noticeBanner = tier === 'low'
     ? `<div style="background:#FFF7ED;border-left:4px solid #F59E0B;padding:10px 14px;
          border-radius:8px;margin-bottom:12px;font-size:.82rem;line-height:1.55;color:#7C2D12">
          <strong>※ 안내</strong> &nbsp;국립중앙도서관 Q&A DB에 직접 매칭되는 사례가 없어,
          사서의 일반 지식 기반으로 안내해 드립니다. 시설·이용 관련 상세 사항은
-         도서관 안내데스크 또는 홈페이지에서 최종 확인을 권장합니다.
+         도서관 안내데스크 또는 홈페이지에서 최종 확인을 권장합니다.<br>
+         ▸ <a href="https://www.nl.go.kr/ask/" target="_blank" rel="noopener"
+              style="color:#B45309;text-decoration:underline">국립중앙도서관 「사서에게 물어보세요」 바로가기 →</a>
+       </div>`
+    : tier === 'mid'
+    ? `<div style="background:#EFF6FF;border-left:4px solid #3B82F6;padding:10px 14px;
+         border-radius:8px;margin-bottom:12px;font-size:.82rem;line-height:1.55;color:#1E3A5F">
+         <strong>※ 안내</strong> &nbsp;참고 자료를 기반으로 보완 답변드립니다.
+         DB 매칭 신뢰도가 부분적이므로 중요한 사항은 도서관 안내데스크에서 최종 확인을 권장합니다.
        </div>`
     : '';
 
@@ -1376,16 +1393,31 @@ function libRender(data) {
     '<span class="lib-cite" data-n="$1">[$1]</span>'
   );
 
-  let html = generalNotice + `
+  const _lastQuery = data.query || '';
+  const _lastTier  = tier;
+  const _lastTscore = data.top_score || 0;
+  const _lastNscore = data.norm_score || 0;
+
+  let html = noticeBanner + `
     <div class="lib-response-card">
       <div class="lib-resp-header">
         <span class="lib-resp-icon">📚</span>
         <span class="lib-resp-title">사서의 답변</span>
         ${claudeBadge}
-        ${modeBadge}
+        ${tierBadge}
+        ${scoreBadge}
         ${wBadge}
       </div>
       <div class="lib-resp-text">${safeText}</div>
+      <div style="display:flex;gap:8px;margin-top:12px;padding-top:10px;border-top:1px solid #E5E7EB">
+        <span style="font-size:.78rem;color:#6B7280;align-self:center">이 답변이 도움이 됐나요?</span>
+        <button onclick="libFeedback(true,'${_e(_lastQuery)}','${_lastTier}',${_lastTscore},${_lastNscore})"
+          style="font-size:.78rem;padding:4px 12px;border-radius:20px;border:1px solid #10B981;
+                 background:#F0FDF4;color:#065F46;cursor:pointer">👍 도움이 됐어요</button>
+        <button onclick="libFeedback(false,'${_e(_lastQuery)}','${_lastTier}',${_lastTscore},${_lastNscore})"
+          style="font-size:.78rem;padding:4px 12px;border-radius:20px;border:1px solid #EF4444;
+                 background:#FEF2F2;color:#B91C1C;cursor:pointer">👎 부정확해요</button>
+      </div>
     </div>`;
 
   // 도서 추천 카드 (Claude 답변에서 추출한 『도서명』 → 국중도 검색 API 메타데이터)
@@ -1411,7 +1443,9 @@ function libRender(data) {
 
   if(data.sources && data.sources.length) {
     const citedSet = new Set(data.cited_indices || []);
-    const srcTitle = isGeneral ? '📎 함께 참고한 유사 Q&A (직접 매칭 아님)' : '📎 참고한 Q&A 자료';
+    const srcTitle = tier === 'low' ? '📎 함께 참고한 유사 Q&A (직접 매칭 아님)'
+                   : tier === 'mid' ? '📎 부분 매칭 Q&A 자료 (보강 참고용)'
+                   : '📎 참고한 Q&A 자료';
     html += `<div class="lib-sources-title">${srcTitle} <span style="color:#0F766E;font-size:.8rem;font-weight:700">${data.sources.length}건</span></div>`;
     data.sources.forEach((s, idx) => {
       const num = idx + 1;
@@ -1442,6 +1476,23 @@ function libRender(data) {
   }
 
   body.innerHTML = html;
+}
+
+async function libFeedback(helpful, query, tier, topScore, normScore) {
+  try {
+    await fetch(`${LIB.API_BASE}/api/librarian/feedback`, {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({
+        query, response_tier: tier,
+        top_score: topScore, norm_score: normScore,
+        helpful
+      })
+    });
+    const msg = helpful ? '피드백 감사합니다 👍' : '소중한 의견 감사합니다 👎';
+    const el = document.activeElement;
+    if(el) { el.disabled = true; el.textContent = msg; }
+  } catch(e) { /* 피드백 실패는 조용히 무시 */ }
 }
 
 /* ══════════════════════════════════════════

@@ -86,6 +86,18 @@ def init_db() -> None:
             VALUES (new.id, new.question, new.answer, new.subject);
         END""")
 
+        # 이용자 피드백 테이블 (임계값 자동 튜닝 데이터 수집용)
+        conn.execute("""
+        CREATE TABLE IF NOT EXISTS feedback (
+            id           INTEGER PRIMARY KEY AUTOINCREMENT,
+            query        TEXT    NOT NULL DEFAULT '',
+            response_tier TEXT   NOT NULL DEFAULT '',
+            top_score    REAL    DEFAULT 0,
+            norm_score   REAL    DEFAULT 0,
+            helpful      INTEGER NOT NULL DEFAULT 0,
+            created_at   TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )""")
+
         conn.commit()
 
 
