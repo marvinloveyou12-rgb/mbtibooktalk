@@ -11,6 +11,7 @@ char_wb 방식은 한국어 공통 형태소("도서","관련","때" 등)가 5,0
 
 import os
 import pickle
+import re
 from pathlib import Path
 from typing import Optional
 
@@ -19,6 +20,46 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 
 from .database import get_conn, get_items_for_index
+
+# ── 한국어 쿼리 정규화 ──────────────────────────────────────
+# word-level TF-IDF는 활용형("우울할","위로가")을 기본형("우울","위로")과
+# 다른 토큰으로 취급하여 매칭 실패 → 어미·조사를 제거해 기본형에 근접시킴
+_KO_ENDINGS = sorted([
+    # 동사 어미
+    "하는", "하다", "해요", "해서", "했어요", "했", "하고", "한다", "한", "함",
+    "하면", "하며", "하기", "하게", "하나요", "하나", "합니다", "해줘", "해줘요",
+    "되는", "됩니다", "됐", "되어", "되고", "되면", "되어서",
+    "있는", "없는", "있어요", "없어요",
+    "이에요", "예요", "입니다", "이야",
+    # 조사 (긴 것 먼저)
+    "으로부터", "에게서", "에서부터",
+    "으로", "에서", "에게", "부터", "까지", "처럼", "만큼", "보다", "에는",
+    "가", "이", "을", "를", "은", "는", "도", "로", "에", "의", "와", "과",
+    "할", "적", "인",
+], key=len, reverse=True)
+
+_HANGUL_RE = re.compile(r"^[가-힣]+$")
+
+
+def _normalize_ko_query(query: str) -> str:
+    """한국어 어미·조사를 제거하여 기본형에 가깝게 정규화.
+
+    '우울할 때 위로가 되는 책' → '우울 때 위로 되는 책'
+    이후 _KW_STOPWORDS 필터를 거치면 '우울 위로'만 남아 정확한 매칭.
+    """
+    result = []
+    for word in query.split():
+        if not _HANGUL_RE.match(word):
+            result.append(word)
+            continue
+        norm = word
+        for ending in _KO_ENDINGS:
+            if norm.endswith(ending) and len(norm) - len(ending) >= 2:
+                norm = norm[: -len(ending)]
+                break
+        result.append(norm)
+    normalized = " ".join(result)
+    return normalized if normalized.strip() else query
 
 _vectorizer: Optional[TfidfVectorizer] = None
 _matrix = None      # sparse matrix
@@ -102,10 +143,17 @@ def _fetch_rows_by_ids(ids: list[int]) -> dict:
 
 
 def vector_search(query: str, top_k: int = 10) -> list[dict]:
-    """TF-IDF 벡터 검색(폴백용)."""
+    """TF-IDF 벡터 검색(폴백용).
+
+    어미·조사 제거 후 기본형으로 정규화한 쿼리를 사용하여
+    '우울할' → '우울' 등 활용형도 올바르게 매칭.
+    """
     if not _ensure_index():
         return []
-    q_vec = _vectorizer.transform([query])
+    normalized = _normalize_ko_query(query)
+    # 원본과 정규화 결합: 두 쪽 모두 고려
+    combined = f"{query} {normalized}" if normalized != query else query
+    q_vec = _vectorizer.transform([combined])
     scores = cosine_similarity(q_vec, _matrix).flatten()
     top_idx = np.argsort(scores)[::-1][:top_k * 2]
     top_idx = [i for i in top_idx if scores[i] >= VECTOR_MIN_SCORE][:top_k]
@@ -147,10 +195,16 @@ def keyword_search(query: str, top_k: int = 10) -> list[dict]:
 
     rows = _run(query.replace('"', '""'))
     if not rows:
-        # 폴백: 의미 있는 단어만 골라 개별 검색
-        # 도서관 공통어("책", "도서", "추천" 등) 제외 → 엉뚱한 문서 매칭 방지
+        # 2차: 정규화 쿼리로 재시도 ("우울할 위로가" → "우울 위로")
+        normalized = _normalize_ko_query(query)
+        if normalized != query:
+            rows = _run(normalized.replace('"', '""'))
+    if not rows:
+        # 3차: 정규화된 의미어 단어별 개별 검색
+        # 도서관 공통어("책","도서","추천" 등) 제외 → 엉뚱한 문서 매칭 방지
+        normalized = _normalize_ko_query(query)
         words = [
-            w for w in query.split()
+            w for w in normalized.split()
             if len(w) >= 2 and w not in _KW_STOPWORDS
         ]
         seen, rows = set(), []
