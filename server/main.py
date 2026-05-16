@@ -50,6 +50,21 @@ init_db()
 def _startup():
     _seed()
     if _count_items() > 0:
+        # word-level TF-IDF로 교체 후 첫 기동 시 기존 char_wb 캐시 자동 무효화
+        from pathlib import Path as _P
+        import pickle as _pk
+        cache = _P(__file__).parent / "tfidf_cache.pkl"
+        if cache.exists():
+            try:
+                with open(cache, "rb") as _f:
+                    _meta = _pk.load(_f)
+                # vectorizer analyzer가 char_wb이면 낡은 캐시 → 삭제 후 재빌드
+                _old_vec = _meta.get("vectorizer")
+                if _old_vec and getattr(_old_vec, "analyzer", None) == "char_wb":
+                    cache.unlink()
+                    print("[startup] char_wb 캐시 감지 → 삭제 후 word-level 재빌드")
+            except Exception:
+                cache.unlink(missing_ok=True)
         _build_index()
         # 시맨틱 인덱스(가용 시) — 백그라운드 빌드
         try:

@@ -3,6 +3,10 @@
 벡터 검색은 시맨틱 임베딩(가용 시) → TF-IDF 자동 폴백 구조이며,
 키워드 검색은 SQLite FTS5 BM25 기반이다.
 최종 융합은 RRF(Reciprocal Rank Fusion)로 처리하여 두 점수의 스케일 차이를 흡수한다.
+
+TF-IDF 벡터라이저: word-level(1,2-gram) 사용.
+char_wb 방식은 한국어 공통 형태소("도서","관련","때" 등)가 5,000건 이상 코퍼스에서
+무관한 문서와 spurious cosine similarity를 발생시키므로 교체함.
 """
 
 import os
@@ -28,6 +32,9 @@ VECTOR_WEIGHT = float(os.getenv("HYBRID_VECTOR_WEIGHT", "0.7"))
 KEYWORD_WEIGHT = float(os.getenv("HYBRID_KEYWORD_WEIGHT", "0.3"))
 RRF_K = int(os.getenv("RRF_K", "60"))
 
+# TF-IDF 최소 코사인 유사도 임계값 (기존 0.01 → 0.05 로 상향)
+VECTOR_MIN_SCORE = float(os.getenv("VECTOR_MIN_SCORE", "0.05"))
+
 
 def build_index() -> None:
     """Build (or rebuild) the TF-IDF matrix from all items in the DB."""
@@ -41,12 +48,15 @@ def build_index() -> None:
     _rec_keys = [r["rec_key"] for r in rows]
     texts = [f"{r['question']} {r['answer']}" for r in rows]
 
+    # word-level(1,2-gram): 의미 단위 매칭 → 의미상 무관한 문서와의
+    # spurious cosine similarity 억제 (char_wb 대비 정확도 개선)
     _vectorizer = TfidfVectorizer(
-        analyzer="char_wb",
-        ngram_range=(2, 4),
+        analyzer="word",
+        ngram_range=(1, 2),
         max_features=80_000,
         sublinear_tf=True,
         min_df=1,
+        token_pattern=r"(?u)\b\w+\b",
     )
     _matrix = _vectorizer.fit_transform(texts)
 
@@ -98,7 +108,7 @@ def vector_search(query: str, top_k: int = 10) -> list[dict]:
     q_vec = _vectorizer.transform([query])
     scores = cosine_similarity(q_vec, _matrix).flatten()
     top_idx = np.argsort(scores)[::-1][:top_k * 2]
-    top_idx = [i for i in top_idx if scores[i] >= 0.01][:top_k]
+    top_idx = [i for i in top_idx if scores[i] >= VECTOR_MIN_SCORE][:top_k]
     id_list = [_ids[i] for i in top_idx]
     rows = _fetch_rows_by_ids(id_list)
     results = []
