@@ -15,6 +15,8 @@ try:
 except ImportError:
     _HAS_ANTHROPIC = False
 
+from .data4lib import search_books, format_for_rag as _d4l_format
+
 MODEL = "claude-sonnet-4-6"
 MAX_TOKENS = 2200
 CONTEXT_TOP_N = 8
@@ -190,6 +192,10 @@ def get_librarian_response(user_query: str, search_results: list[dict]) -> dict:
     # 하위 호환 response_mode
     response_mode = "general" if tier == "low" else "rag"
 
+    # 정보나루 실제 대출 데이터 보강 (API 미활성화·오류 시 빈 문자열)
+    d4l_books   = search_books(user_query)
+    d4l_context = _d4l_format(d4l_books)
+
     if not _HAS_ANTHROPIC or not api_key:
         return {
             "response": _fallback_response(user_query, search_results, tier),
@@ -200,9 +206,17 @@ def get_librarian_response(user_query: str, search_results: list[dict]) -> dict:
             "response_tier": tier,
             "top_score": round(top_score, 5),
             "norm_score": round(norm_score, 5),
+            "data4lib_count": len(d4l_books),
         }
 
     client = anthropic.Anthropic(api_key=api_key)
+
+    # 정보나루 데이터가 있을 때 공통 안내 문구
+    d4l_note = (
+        f"\n\n{d4l_context}\n"
+        f"위 정보나루 자료의 도서는 실제 대출 통계 기반이므로 추천 시 우선 참고하되, "
+        f"인용 번호는 사서 Q&A 자료([1],[2])만 사용하십시오."
+    ) if d4l_context else ""
 
     if tier == "high":
         context = _format_context(search_results)
@@ -211,25 +225,26 @@ def get_librarian_response(user_query: str, search_results: list[dict]) -> dict:
             f"아래는 국립중앙도서관 「사서에게 물어보세요」 DB에서 추출한 관련 Q&A 자료입니다.\n"
             f"각 자료의 [1], [2] 번호는 답변 본문에서 인용 번호로 사용해 주십시오.\n"
             f"반드시 최소 하나 이상의 인용 번호를 포함하여 답변해 주십시오.\n\n"
-            f"{context}\n\n"
+            f"{context}"
+            f"{d4l_note}\n\n"
             f"위 참고자료를 근거로, 시스템 지침에 따라 인용 번호를 표기하며 답변해 주십시오."
         )
         system_prompt = SYSTEM_PROMPT_HIGH
 
     elif tier == "mid":
-        # MID: 1~3건 컨텍스트 + 보강 설명
         context = _format_context(search_results, max_n=3)
         user_content = (
             f"이용자 질문: {user_query}\n\n"
             f"아래는 부분적으로 관련된 Q&A 자료입니다 (1~3건). [1], [2] 번호로 인용하되, "
             f"사서의 일반 지식으로 보완하여 답변해 주십시오.\n\n"
-            f"{context}\n\n"
+            f"{context}"
+            f"{d4l_note}\n\n"
             f"시스템 지침의 안내 문구(※ 참고 자료를 기반으로 보완 답변드립니다.)를 반드시 포함해 주십시오."
         )
         system_prompt = SYSTEM_PROMPT_MID
 
     else:
-        # LOW: 일반 지식 모드
+        # LOW: 일반 지식 모드 — 정보나루 데이터가 특히 중요
         weak_hint = ""
         if search_results:
             top3 = "\n".join(
@@ -238,10 +253,11 @@ def get_librarian_response(user_query: str, search_results: list[dict]) -> dict:
             weak_hint = "\n참고용 약한 매칭 자료(인용 번호로 사용하지 마십시오):\n" + top3 + "\n"
         user_content = (
             f"이용자 질문: {user_query}\n"
-            f"{weak_hint}\n"
+            f"{weak_hint}"
+            f"{d4l_note}\n\n"
             f"이 질문은 국립중앙도서관 Q&A DB에 직접적인 답변 사례가 없습니다. "
             f"시스템 지침의 안내 문구를 반드시 첫 줄에 포함하고, "
-            f"사서의 일반 전문 지식으로 답변하며, "
+            f"정보나루 대출 데이터 기반 도서가 있으면 적극 활용하여 답변하며, "
             f"답변 마지막에 국중도 「사서에게 물어보세요」 링크(https://www.nl.go.kr/ask/)를 안내해 주십시오."
         )
         system_prompt = SYSTEM_PROMPT_LOW
@@ -265,4 +281,5 @@ def get_librarian_response(user_query: str, search_results: list[dict]) -> dict:
         "response_tier": tier,
         "top_score": round(top_score, 5),
         "norm_score": round(norm_score, 5),
+        "data4lib_count": len(d4l_books),
     }
