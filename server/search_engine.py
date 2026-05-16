@@ -1,5 +1,11 @@
-"""Hybrid keyword + vector (TF-IDF) search over the NL Q&A database."""
+"""Hybrid keyword + vector search over the NL Q&A database.
 
+벡터 검색은 시맨틱 임베딩(가용 시) → TF-IDF 자동 폴백 구조이며,
+키워드 검색은 SQLite FTS5 BM25 기반이다.
+최종 융합은 RRF(Reciprocal Rank Fusion)로 처리하여 두 점수의 스케일 차이를 흡수한다.
+"""
+
+import os
 import pickle
 from pathlib import Path
 from typing import Optional
@@ -16,6 +22,11 @@ _ids: list[int] = []
 _rec_keys: list[str] = []
 
 CACHE_PATH = Path(__file__).parent / "tfidf_cache.pkl"
+
+# ── 하이브리드 검색 가중치 (과제 명세: 벡터:키워드 = 7:3) ──────────
+VECTOR_WEIGHT = float(os.getenv("HYBRID_VECTOR_WEIGHT", "0.7"))
+KEYWORD_WEIGHT = float(os.getenv("HYBRID_KEYWORD_WEIGHT", "0.3"))
+RRF_K = int(os.getenv("RRF_K", "60"))
 
 
 def build_index() -> None:
@@ -68,7 +79,6 @@ def _ensure_index() -> bool:
 
 
 def _fetch_rows_by_ids(ids: list[int]) -> dict:
-    """Return {id: row_dict} for the given IDs."""
     if not ids:
         return {}
     placeholders = ",".join("?" * len(ids))
@@ -82,6 +92,7 @@ def _fetch_rows_by_ids(ids: list[int]) -> dict:
 
 
 def vector_search(query: str, top_k: int = 10) -> list[dict]:
+    """TF-IDF 벡터 검색(폴백용)."""
     if not _ensure_index():
         return []
     q_vec = _vectorizer.transform([query])
@@ -91,7 +102,7 @@ def vector_search(query: str, top_k: int = 10) -> list[dict]:
     id_list = [_ids[i] for i in top_idx]
     rows = _fetch_rows_by_ids(id_list)
     results = []
-    for i, idx in enumerate(top_idx):
+    for idx in top_idx:
         row = rows.get(_ids[idx])
         if row:
             results.append({**row, "score": float(scores[idx]), "search_type": "vector"})
@@ -99,6 +110,7 @@ def vector_search(query: str, top_k: int = 10) -> list[dict]:
 
 
 def keyword_search(query: str, top_k: int = 10) -> list[dict]:
+    """SQLite FTS5 BM25 키워드 검색."""
     SQL = """
         SELECT q.id, q.rec_key, q.question, q.answer, q.subject,
                q.answer_date, q.answer_lib, bm25(qa_fts) AS score
@@ -115,10 +127,7 @@ def keyword_search(query: str, top_k: int = 10) -> list[dict]:
         except Exception:
             return []
 
-    # 1차: 전체 쿼리
     rows = _run(query.replace('"', '""'))
-
-    # 2차: 단어별 OR 검색 (2글자 이상)
     if not rows:
         words = [w for w in query.split() if len(w) >= 2]
         seen, rows = set(), []
@@ -133,31 +142,68 @@ def keyword_search(query: str, top_k: int = 10) -> list[dict]:
             for r in rows]
 
 
+def _rrf_scores(ranked_keys: list[str], k: int = RRF_K) -> dict:
+    """Reciprocal Rank Fusion: 1 / (k + rank) 점수 산출."""
+    return {key: 1.0 / (k + rank + 1) for rank, key in enumerate(ranked_keys)}
+
+
+def _vector_pipeline(query: str, top_k: int) -> tuple:
+    """시맨틱 임베딩 가용 시 우선 사용, 아니면 TF-IDF로 폴백."""
+    try:
+        from . import semantic_engine
+        if semantic_engine.is_available():
+            sem = semantic_engine.semantic_search(query, top_k * 2)
+            if sem:
+                return sem, "semantic"
+    except Exception as e:
+        print(f"[hybrid] 시맨틱 검색 호출 실패 → TF-IDF 폴백: {e}")
+    return vector_search(query, top_k * 2), "tfidf"
+
+
 def hybrid_search(query: str, top_k: int = 8) -> list[dict]:
-    kw = {r["rec_key"]: r for r in keyword_search(query, top_k * 2)}
-    vec = {r["rec_key"]: r for r in vector_search(query, top_k * 2)}
+    """벡터(시맨틱·TF-IDF 자동선택) + 키워드 하이브리드 검색.
+
+    - 두 검색 결과를 RRF로 정규화하여 스케일 차이 제거
+    - 최종 점수 = VECTOR_WEIGHT × vec_rrf + KEYWORD_WEIGHT × kw_rrf
+    """
+    kw_list = keyword_search(query, top_k * 2)
+    vec_list, vec_engine = _vector_pipeline(query, top_k)
+    kw = {r["rec_key"]: r for r in kw_list}
+    vec = {r["rec_key"]: r for r in vec_list}
 
     all_keys = set(kw) | set(vec)
     if not all_keys:
         return []
 
-    kw_max = max((r["score"] for r in kw.values()), default=1) or 1
-    vec_max = max((r["score"] for r in vec.values()), default=1) or 1
+    kw_rrf = _rrf_scores([r["rec_key"] for r in kw_list])
+    vec_rrf = _rrf_scores([r["rec_key"] for r in vec_list])
 
     merged = []
-    for k in all_keys:
-        base = kw.get(k) or vec.get(k)
-        kw_s = kw[k]["score"] / kw_max if k in kw else 0.0
-        vec_s = vec[k]["score"] / vec_max if k in vec else 0.0
-        combined = 0.45 * kw_s + 0.55 * vec_s
-        merged.append({**base, "combined_score": combined,
-                       "search_type": "hybrid" if (k in kw and k in vec) else base["search_type"]})
+    for key in all_keys:
+        base = vec.get(key) or kw.get(key)
+        kw_s = kw_rrf.get(key, 0.0)
+        vec_s = vec_rrf.get(key, 0.0)
+        combined = VECTOR_WEIGHT * vec_s + KEYWORD_WEIGHT * kw_s
+        if key in kw and key in vec:
+            stype = "hybrid"
+        else:
+            stype = base.get("search_type", "")
+        merged.append({
+            **base,
+            "combined_score": combined,
+            "kw_rrf": kw_s,
+            "vec_rrf": vec_s,
+            "search_type": stype,
+            "vector_engine": vec_engine,
+        })
+
 
     merged.sort(key=lambda x: x["combined_score"], reverse=True)
     return merged[:top_k]
 
 
 def invalidate_cache() -> None:
+    """TF-IDF 인덱스 캐시 무효화."""
     global _vectorizer, _matrix, _ids, _rec_keys
     _vectorizer = _matrix = None
     _ids = []

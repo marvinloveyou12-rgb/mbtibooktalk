@@ -106,20 +106,32 @@ async def _fetch_detail(client: httpx.AsyncClient, rec_key: str, subject: str) -
     }
 
 
-async def run_crawl(rebuild_index_fn=None) -> None:
-    """Full crawl: enumerate list pages → fetch details → rebuild index."""
+async def run_crawl(rebuild_index_fn=None, force: bool = False,
+                    max_pages: int = 200) -> None:
+    """전수/증분 크롤. force=True 인 경우 기존 rec_key도 재수집.
+
+    Parameters
+    ----------
+    rebuild_index_fn : callable | None
+        수집 완료 후 호출할 인덱스 재빌드 함수
+    force : bool
+        True면 기존 항목도 전수 재수집(답변 갱신분 반영)
+    max_pages : int
+        목록 페이지 순회 안전 한도(무한 루프 방지)
+    """
     from .database import upsert_item, get_known_keys
 
     crawl_state.update({"running": True, "done": 0, "errors": 0,
-                        "stage": "listing", "message": "목록 수집 중..."})
+                        "stage": "listing",
+                        "message": ("전수 재수집 시작..." if force else "신규 수집 시작...")})
 
-    known = get_known_keys()
+    known = get_known_keys() if not force else set()
     all_items: list[dict] = []
+    empty_streak = 0  # 연속 빈 응답 카운터
 
     async with httpx.AsyncClient() as client:
         # Step 1: collect all rec_keys from list pages
-        page = 1
-        while True:
+        for page in range(1, max_pages + 1):
             try:
                 page_items = await _fetch_list_page(client, page)
             except Exception as e:
@@ -127,19 +139,23 @@ async def run_crawl(rebuild_index_fn=None) -> None:
                 crawl_state["message"] = f"목록 오류 (page {page}): {e}"
                 break
             if not page_items:
-                break
+                empty_streak += 1
+                if empty_streak >= 2:
+                    break
+                continue
+            empty_streak = 0
             all_items.extend(page_items)
-            crawl_state["message"] = f"목록 수집 중... {len(all_items)}건"
+            crawl_state["message"] = f"목록 수집 중... {len(all_items)}건 (page {page})"
             await asyncio.sleep(0.3)
-            page += 1
 
-        # Step 2: fetch details for new items
-        new_items = [i for i in all_items if i["rec_key"] not in known]
+        # Step 2: fetch details (force 시 전수, 아니면 신규만)
+        target_items = all_items if force else [i for i in all_items if i["rec_key"] not in known]
         crawl_state.update({
-            "total": len(new_items),
+            "total": len(target_items),
             "stage": "detail",
-            "message": f"신규 {len(new_items)}건 상세 수집 시작",
+            "message": f"{'전수' if force else '신규'} {len(target_items)}건 상세 수집 시작",
         })
+        new_items = target_items
 
         CONCURRENCY = 5
         sem = asyncio.Semaphore(CONCURRENCY)

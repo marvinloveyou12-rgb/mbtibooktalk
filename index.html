@@ -662,6 +662,8 @@ img{max-width:100%}
 .lib-src-badge{font-size:.68rem;border-radius:6px;padding:2px 7px;font-weight:600}
 .lib-src-subj{background:#F0FDFA;color:#0F766E}
 .lib-src-type{background:#EEF2FF;color:#6366F1}
+.lib-cite{background:#FEF3C7;color:#92400E;font-weight:700;font-size:.82em;
+  padding:1px 5px;border-radius:5px;margin:0 1px;cursor:default}
 .lib-crawl-card{
   background:#FFF7ED;border:1.5px solid #FED7AA;border-radius:14px;
   padding:18px;text-align:center;margin-bottom:16px;
@@ -1242,14 +1244,23 @@ async function libCheckStatus() {
         ✅ DB 수집 완료 · <strong>${d.db_count.toLocaleString()}건</strong> · 자연어 검색 가능</div>`;
     }
   } catch(e) {
-    box.innerHTML=`<div class="lib-crawl-card">
-      <div class="lib-crawl-title">⚠️ 로컬 서버 연결 필요</div>
-      <div class="lib-crawl-desc">터미널에서 서버를 먼저 실행해주세요:<br>
-        <code style="background:#FEF3C7;padding:4px 10px;border-radius:6px;display:inline-block;margin-top:6px;font-size:.8rem">
-          cd ~/mbtibooktalk/server && ./run.sh
-        </code>
-      </div>
-    </div>`;
+    const isLocal = window.location.hostname === 'localhost'
+                 || window.location.hostname === '127.0.0.1'
+                 || window.location.protocol === 'file:';
+    box.innerHTML = isLocal
+      ? `<div class="lib-crawl-card">
+          <div class="lib-crawl-title">⚠️ 로컬 서버 연결 필요</div>
+          <div class="lib-crawl-desc">터미널에서 서버를 먼저 실행해 주세요:<br>
+            <code style="background:#FEF3C7;padding:4px 10px;border-radius:6px;display:inline-block;margin-top:6px;font-size:.8rem">
+              cd ~/mbtibooktalk/server && ./run.sh
+            </code>
+          </div>
+        </div>`
+      : `<div class="lib-crawl-card">
+          <div class="lib-crawl-title">⚠️ 일시적 응답 지연</div>
+          <div class="lib-crawl-desc">사서 응답 서버에 일시적인 문제가 발생하였습니다.<br>
+            잠시 후 다시 시도해 주시거나, 도서관 담당자에게 문의해 주시기 바랍니다.</div>
+        </div>`;
   }
 }
 
@@ -1317,12 +1328,15 @@ async function libAsk(e) {
     libRender(data);
   } catch(err) {
     const isConn = err.name==='TypeError'||err.name==='AbortError';
+    const isLocal = window.location.hostname === 'localhost'
+                 || window.location.hostname === '127.0.0.1'
+                 || window.location.protocol === 'file:';
+    const connMsg = isLocal
+      ? '로컬 서버가 실행 중인지 확인해 주세요.<br><code style="background:#FEF3C7;padding:4px 8px;border-radius:6px;font-size:.8rem">cd ~/mbtibooktalk/server && ./run.sh</code>'
+      : '사서 응답 서버에 일시적인 문제가 발생하였습니다. 잠시 후 다시 시도해 주시기 바랍니다.';
     body.innerHTML=`<div class="lib-crawl-card">
       <div class="lib-crawl-title">${isConn?'⚠️ 서버 연결 실패':'⚠️ 오류 발생'}</div>
-      <div class="lib-crawl-desc">${isConn
-        ? '로컬 서버가 실행 중인지 확인해주세요.<br><code style="background:#FEF3C7;padding:4px 8px;border-radius:6px;font-size:.8rem">cd ~/mbtibooktalk/server && ./run.sh</code>'
-        : _e(err.message)
-      }</div>
+      <div class="lib-crawl-desc">${isConn ? connMsg : _e(err.message)}</div>
     </div>`;
   } finally {
     if(btn) btn.disabled = false;
@@ -1335,33 +1349,96 @@ function libRender(data) {
     ? '<span class="lib-resp-badge">Claude AI</span>'
     : '<span class="lib-resp-badge" style="background:#FEF3C7;color:#92400E">기본 요약</span>';
 
-  let html = `
+  // 가중치 뱃지 (벡터:키워드)
+  const w = data.weights || {vector:0.7, keyword:0.3};
+  const wBadge = `<span class="lib-resp-badge" style="background:#EFF6FF;color:#1D4ED8">
+    가중치 V${Math.round(w.vector*10)}:K${Math.round(w.keyword*10)}</span>`;
+
+  // 응답 모드 뱃지 (RAG / 일반 지식)
+  const isGeneral = (data.response_mode === 'general');
+  const modeBadge = isGeneral
+    ? '<span class="lib-resp-badge" style="background:#FEF2F2;color:#B91C1C">일반 지식 응답</span>'
+    : '<span class="lib-resp-badge" style="background:#ECFDF5;color:#065F46">RAG · 출처 기반</span>';
+
+  // 일반 지식 모드일 때 상단 배너
+  const generalNotice = isGeneral
+    ? `<div style="background:#FFF7ED;border-left:4px solid #F59E0B;padding:10px 14px;
+         border-radius:8px;margin-bottom:12px;font-size:.82rem;line-height:1.55;color:#7C2D12">
+         <strong>※ 안내</strong> &nbsp;국립중앙도서관 Q&A DB에 직접 매칭되는 사례가 없어,
+         사서의 일반 지식 기반으로 안내해 드립니다. 시설·이용 관련 상세 사항은
+         도서관 안내데스크 또는 홈페이지에서 최종 확인을 권장합니다.
+       </div>`
+    : '';
+
+  // 답변 본문의 [n] 인용 번호를 강조 표시 (HTML 이스케이프 후 정규식 치환)
+  const safeText = _e(data.response).replace(
+    /\[(\d{1,2})\]/g,
+    '<span class="lib-cite" data-n="$1">[$1]</span>'
+  );
+
+  let html = generalNotice + `
     <div class="lib-response-card">
       <div class="lib-resp-header">
         <span class="lib-resp-icon">📚</span>
         <span class="lib-resp-title">사서의 답변</span>
         ${claudeBadge}
+        ${modeBadge}
+        ${wBadge}
       </div>
-      <div class="lib-resp-text">${_e(data.response)}</div>
+      <div class="lib-resp-text">${safeText}</div>
     </div>`;
 
+  // 도서 추천 카드 (Claude 답변에서 추출한 『도서명』 → 국중도 검색 API 메타데이터)
+  if(data.book_cards && data.book_cards.length) {
+    html += `<div class="lib-sources-title">📘 추천 도서 <span style="color:#0F766E;font-size:.8rem;font-weight:700">${data.book_cards.length}종</span></div>`;
+    html += `<div style="display:grid;grid-template-columns:1fr;gap:10px;margin-bottom:14px">`;
+    data.book_cards.forEach(b => {
+      const link = b.detail_link || '#';
+      html += `<div class="lib-source-card" style="border-left:4px solid #0D9488">
+        <div class="lib-src-q">『${_e(b.title)}』</div>
+        <div style="font-size:.78rem;color:#374151;line-height:1.6;margin-top:4px">
+          ${_e(b.author||'-')} · ${_e(b.publisher||'-')} (${_e(b.year||'-')})<br>
+          분류: ${_e(b.kdc_name||'-')} · 청구기호: ${_e(b.call_no||'-')}
+        </div>
+        <div style="margin-top:8px">
+          <a href="${_e(link)}" target="_blank" rel="noopener"
+             style="font-size:.75rem;color:#0F766E;text-decoration:underline">국립중앙도서관 상세 →</a>
+        </div>
+      </div>`;
+    });
+    html += `</div>`;
+  }
+
   if(data.sources && data.sources.length) {
-    html += `<div class="lib-sources-title">📎 참고한 Q&A 자료 <span style="color:#0F766E;font-size:.8rem;font-weight:700">${data.sources.length}건</span></div>`;
-    data.sources.forEach(s => {
+    const citedSet = new Set(data.cited_indices || []);
+    const srcTitle = isGeneral ? '📎 함께 참고한 유사 Q&A (직접 매칭 아님)' : '📎 참고한 Q&A 자료';
+    html += `<div class="lib-sources-title">${srcTitle} <span style="color:#0F766E;font-size:.8rem;font-weight:700">${data.sources.length}건</span></div>`;
+    data.sources.forEach((s, idx) => {
+      const num = idx + 1;
       const typeLabel = s.search_type==='hybrid'?'하이브리드':s.search_type==='vector'?'벡터':'키워드';
-      html += `<div class="lib-source-card" onclick="const a=this.querySelector('.lib-src-a'),t=this.querySelector('.lib-src-toggle');a.classList.toggle('expanded');t.textContent=a.classList.contains('expanded')?'▲ 접기':'▼ 더 보기'">
-        <div class="lib-src-q">${_e(s.question)}</div>
+      const isCited = citedSet.has(num);
+      const citeMark = isCited
+        ? `<span class="lib-src-badge" style="background:#FEF3C7;color:#92400E">본문 인용 [${num}]</span>`
+        : `<span class="lib-src-badge" style="background:#F3F4F6;color:#4B5563">[${num}]</span>`;
+      const sourceLink = s.source_url
+        ? `<a href="${_e(s.source_url)}" target="_blank" rel="noopener"
+              style="font-size:.72rem;color:#0F766E;text-decoration:underline">원문 보기 →</a>`
+        : '';
+      html += `<div class="lib-source-card" onclick="if(event.target.tagName==='A')return;const a=this.querySelector('.lib-src-a'),t=this.querySelector('.lib-src-toggle');a.classList.toggle('expanded');t.textContent=a.classList.contains('expanded')?'▲ 접기':'▼ 더 보기'">
+        <div class="lib-src-q">${citeMark} ${_e(s.question)}</div>
         <div class="lib-src-a">${_e(s.answer)}</div>
         <div class="lib-src-toggle">▼ 더 보기</div>
         <div class="lib-src-meta">
           ${s.subject?`<span class="lib-src-badge lib-src-subj">${_e(s.subject)}</span>`:''}
           <span class="lib-src-badge lib-src-type">${typeLabel}</span>
+          ${s.answer_lib?`<span style="font-size:.68rem;color:var(--gray)">${_e(s.answer_lib)}</span>`:''}
           ${s.answer_date?`<span style="font-size:.68rem;color:var(--gray)">${_e(s.answer_date)}</span>`:''}
+          ${sourceLink}
         </div>
       </div>`;
     });
   } else {
-    html += `<div class="lib-empty"><div style="font-size:2rem;margin-bottom:8px">🔍</div>관련 자료를 찾지 못했습니다.<br>다른 키워드로 시도해보세요.</div>`;
+    html += `<div class="lib-empty"><div style="font-size:2rem;margin-bottom:8px">🔍</div>관련 자료를 찾지 못했습니다.<br>다른 키워드로 시도해 보세요.</div>`;
   }
 
   body.innerHTML = html;
