@@ -1412,7 +1412,7 @@ function libRender(data) {
           : ''}
       </div>
       <div class="lib-resp-text">${safeText}</div>
-      <div style="display:flex;gap:8px;margin-top:12px;padding-top:10px;border-top:1px solid #E5E7EB">
+      <div id="lib-feedback-area" style="display:flex;gap:8px;margin-top:12px;padding-top:10px;border-top:1px solid #E5E7EB">
         <span style="font-size:.78rem;color:#6B7280;align-self:center">이 답변이 도움이 됐나요?</span>
         <button onclick="libFeedback(true,'${_e(_lastQuery)}','${_lastTier}',${_lastTscore},${_lastNscore})"
           style="font-size:.78rem;padding:4px 12px;border-radius:20px;border:1px solid #10B981;
@@ -1492,10 +1492,28 @@ async function libFeedback(helpful, query, tier, topScore, normScore) {
         helpful
       })
     });
-    const msg = helpful ? '피드백 감사합니다 👍' : '소중한 의견 감사합니다 👎';
-    const el = document.activeElement;
-    if(el) { el.disabled = true; el.textContent = msg; }
   } catch(e) { /* 피드백 실패는 조용히 무시 */ }
+  const area = document.getElementById('lib-feedback-area');
+  if (area) {
+    area.innerHTML = `
+      <span style="font-size:.85rem;color:#059669;font-weight:600">피드백 감사합니다. 🙏</span>
+      <button onclick="libGoBack()"
+        style="margin-left:8px;font-size:.78rem;padding:4px 14px;border-radius:20px;
+               border:1px solid #6B7280;background:#F9FAFB;color:#374151;cursor:pointer">
+        ↩ 다시 돌아가기
+      </button>`;
+  }
+}
+
+function libGoBack() {
+  const ta = document.getElementById('libInput');
+  if (ta) {
+    ta.value = '';
+    ta.focus();
+    ta.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }
+  const body = document.getElementById('libBody');
+  if (body) body.innerHTML = '';
 }
 
 /* ══════════════════════════════════════════
