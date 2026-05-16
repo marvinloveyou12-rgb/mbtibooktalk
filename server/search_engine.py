@@ -119,6 +119,14 @@ def vector_search(query: str, top_k: int = 10) -> list[dict]:
     return results
 
 
+# 도서관 Q&A 전체에 너무 자주 나타나 단독 폴백 검색어로 쓰면 잡음이 되는 단어
+_KW_STOPWORDS = {
+    "책", "도서", "추천", "관련", "알려", "어떤", "좋은", "있는", "없는",
+    "되는", "하는", "해요", "해서", "같은", "위한", "대한", "있어요", "싶어요",
+    "읽고", "읽을", "읽어", "볼", "봐요", "줘요", "주세요", "드립니다", "합니다",
+}
+
+
 def keyword_search(query: str, top_k: int = 10) -> list[dict]:
     """SQLite FTS5 BM25 키워드 검색."""
     SQL = """
@@ -139,7 +147,12 @@ def keyword_search(query: str, top_k: int = 10) -> list[dict]:
 
     rows = _run(query.replace('"', '""'))
     if not rows:
-        words = [w for w in query.split() if len(w) >= 2]
+        # 폴백: 의미 있는 단어만 골라 개별 검색
+        # 도서관 공통어("책", "도서", "추천" 등) 제외 → 엉뚱한 문서 매칭 방지
+        words = [
+            w for w in query.split()
+            if len(w) >= 2 and w not in _KW_STOPWORDS
+        ]
         seen, rows = set(), []
         for word in words[:5]:
             for r in _run(word):
