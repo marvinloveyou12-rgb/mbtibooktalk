@@ -31,7 +31,8 @@ _PRESENCE_TTL = 90  # 90초 이상 ping 없으면 오프라인 처리
 # ── CORS 화이트리스트 ────────────────────────────────────────
 _cors_default = (
     "http://localhost:8000,http://127.0.0.1:8000,"
-    "https://dongle0516-mbtibooktalk.hf.space"
+    "https://dongle0516-mbtibooktalk.hf.space,"
+    "https://marvinloveyou12-rgb.github.io"
 )
 _cors_env = os.getenv("CORS_ALLOW_ORIGINS", _cors_default).strip()
 _cors_origins = ["*"] if _cors_env == "*" else [
