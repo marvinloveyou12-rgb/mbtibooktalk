@@ -5,6 +5,7 @@ from pydantic import BaseModel
 import httpx
 import xml.etree.ElementTree as ET
 import asyncio
+import json
 import os
 import re
 import time as _time
@@ -75,6 +76,61 @@ def _startup():
             print(f"[startup] semantic index 빌드 스킵: {e}")
 
 _threading.Thread(target=_startup, daemon=True).start()
+
+
+# ── 알라딘 TTB API ───────────────────────────────────────────
+_ALADIN_KEY = "ttbpopi07062229002"
+_ALADIN_SEARCH_URL = "https://www.aladin.co.kr/ttb/api/ItemSearch.aspx"
+_GOOGLE_BOOKS_URL  = "https://www.googleapis.com/books/v1/volumes"
+
+
+async def _aladin_search(q: str, query_type: str, start: int = 1, max_results: int = 50) -> list[dict]:
+    cb = "_x"
+    params = {
+        "ttbkey": _ALADIN_KEY, "Query": q, "QueryType": query_type,
+        "MaxResults": max_results, "start": start, "SearchTarget": "Book",
+        "output": "js", "Version": "20131101", "CallBack": cb,
+    }
+    try:
+        async with httpx.AsyncClient(timeout=8.0) as client:
+            r = await client.get(_ALADIN_SEARCH_URL, params=params)
+        text = r.text.strip()
+        if text.startswith(cb + "(") and text.endswith(")"):
+            text = text[len(cb) + 1:-1]
+        data = json.loads(text)
+        return [{
+            "title":     b.get("title", ""),
+            "author":    b.get("author", ""),
+            "publisher": b.get("publisher", ""),
+            "isbn":      b.get("isbn13") or b.get("isbn") or "",
+            "cover":     (b.get("cover") or "").replace("coversum", "cover200"),
+            "link":      b.get("link", ""),
+            "source":    "aladin",
+        } for b in data.get("item", [])]
+    except Exception as e:
+        print(f"[book-search] aladin error: {e}")
+        return []
+
+
+async def _google_books_search(q: str, max_results: int = 40) -> list[dict]:
+    try:
+        async with httpx.AsyncClient(timeout=8.0) as client:
+            r = await client.get(_GOOGLE_BOOKS_URL, params={
+                "q": q, "langRestrict": "ko", "maxResults": min(max_results, 40),
+            })
+        items = r.json().get("items", [])
+        return [{
+            "title":     v.get("title", ""),
+            "author":    ", ".join(v.get("authors", [])),
+            "publisher": v.get("publisher", ""),
+            "isbn":      next((x["identifier"] for x in v.get("industryIdentifiers", []) if x["type"] == "ISBN_13"), ""),
+            "cover":     (v.get("imageLinks", {}).get("thumbnail") or "").replace("http://", "https://"),
+            "link":      v.get("infoLink", ""),
+            "source":    "google",
+        } for i in items for v in [i.get("volumeInfo", {})]]
+    except Exception as e:
+        print(f"[book-search] google error: {e}")
+        return []
 
 
 # ── 국립중앙도서관 외부 API ──────────────────────────────────
@@ -409,6 +465,39 @@ async def analyze(
         },
         "search_results": search_books,
     }
+
+
+# ── 도서 검색 프록시 (알라딘 + Google Books) ─────────────────
+@app.get("/api/book-search")
+async def book_search_proxy(
+    q: str = Query(..., description="검색어"),
+    filter_type: str = Query("all", description="all|title|author|publisher"),
+    max_results: int = Query(30, ge=1, le=100),
+):
+    qt_map = {"title": "Title", "author": "Author", "publisher": "Publisher"}
+    qt = qt_map.get(filter_type, "Keyword")
+
+    if filter_type in qt_map:
+        aladin_calls = [_aladin_search(q, qt, 1, 50)]
+        google_q = {"title": f"intitle:{q}", "author": f"inauthor:{q}", "publisher": f"inpublisher:{q}"}[filter_type]
+    else:
+        aladin_calls = [
+            _aladin_search(q, "Title",   1,  50),
+            _aladin_search(q, "Title",  51,  50),
+            _aladin_search(q, "Keyword", 1,  50),
+            _aladin_search(q, "Keyword", 51, 50),
+        ]
+        google_q = q
+
+    results = await asyncio.gather(*aladin_calls, _google_books_search(google_q))
+    seen, books = set(), []
+    for b in [item for sub in results for item in sub]:
+        key = b["isbn"] or (b["title"] + b["author"])
+        if key not in seen:
+            seen.add(key)
+            books.append(b)
+
+    return {"books": books[:max_results]}
 
 
 # 상위 디렉터리(mbtibooktalk 루트)를 정적으로 서빙

@@ -839,34 +839,16 @@ function _bookRelevance(book, q) {
 
 async function searchBooks(q, filterType) {
   filterType = filterType || 'all';
-  let aladinCalls, googleQuery;
-
-  if (filterType === 'title') {
-    aladinCalls = [aladinSearch(q,'Title',1,50), aladinSearch(q,'Title',51,50)];
-    googleQuery = 'intitle:' + q;
-  } else if (filterType === 'author') {
-    aladinCalls = [aladinSearch(q,'Author',1,50), aladinSearch(q,'Author',51,50)];
-    googleQuery = 'inauthor:' + q;
-  } else if (filterType === 'publisher') {
-    aladinCalls = [aladinSearch(q,'Publisher',1,50), aladinSearch(q,'Publisher',51,50)];
-    googleQuery = 'inpublisher:' + q;
-  } else {
-    aladinCalls = [
-      aladinSearch(q,'Title',1,50), aladinSearch(q,'Title',51,50),
-      aladinSearch(q,'Keyword',1,50), aladinSearch(q,'Keyword',51,50)
-    ];
-    googleQuery = q;
+  try {
+    const r = await fetch(`/api/book-search?q=${encodeURIComponent(q)}&filter_type=${filterType}&max_results=80`);
+    if (!r.ok) throw new Error('api error');
+    const data = await r.json();
+    const out = data.books || [];
+    out.sort((a, b) => _bookRelevance(b, q) - _bookRelevance(a, q));
+    return out;
+  } catch {
+    return [];
   }
-
-  const results = await Promise.all([...aladinCalls, googleSearch(googleQuery)]);
-  const seen = new Set();
-  const out = [];
-  for (const b of results.flat()) {
-    const k = b.isbn || (b.title + b.author);
-    if (!seen.has(k)) { seen.add(k); out.push(b); }
-  }
-  out.sort((a, b) => _bookRelevance(b, q) - _bookRelevance(a, q));
-  return out;
 }
 
 /* 표지 URL 캐시 (query → url) */
