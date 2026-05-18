@@ -837,6 +837,22 @@ function _bookRelevance(book, q) {
   return (titleMatches / words.length) * 400 + (authorMatches / words.length) * 100;
 }
 
+async function _googleSearchDirect(q, filterType) {
+  const qMap = {title:`intitle:${q}`, author:`inauthor:${q}`, publisher:`inpublisher:${q}`};
+  const gq = qMap[filterType] || q;
+  try {
+    const r = await fetch(`https://www.googleapis.com/books/v1/volumes?q=${encodeURIComponent(gq)}&langRestrict=ko&maxResults=40`);
+    const d = await r.json();
+    return (d.items||[]).map(v=>{
+      const i=v.volumeInfo;
+      return {title:i.title||'',author:(i.authors||[]).join(', '),publisher:i.publisher||'',
+        isbn:((i.industryIdentifiers||[]).find(x=>x.type==='ISBN_13')||{}).identifier||'',
+        cover:(i.imageLinks?.thumbnail||'').replace('http://','https://'),
+        link:i.infoLink||'',source:'google'};
+    });
+  } catch { return []; }
+}
+
 async function searchBooks(q, filterType) {
   filterType = filterType || 'all';
   try {
@@ -844,11 +860,15 @@ async function searchBooks(q, filterType) {
     if (!r.ok) throw new Error('api error');
     const data = await r.json();
     const out = data.books || [];
-    out.sort((a, b) => _bookRelevance(b, q) - _bookRelevance(a, q));
-    return out;
-  } catch {
-    return [];
-  }
+    if (out.length > 0) {
+      out.sort((a, b) => _bookRelevance(b, q) - _bookRelevance(a, q));
+      return out;
+    }
+  } catch { /* fall through */ }
+  // 백엔드 미응답·빈 결과 시 Google Books 직접 호출
+  const fb = await _googleSearchDirect(q, filterType);
+  fb.sort((a, b) => _bookRelevance(b, q) - _bookRelevance(a, q));
+  return fb;
 }
 
 /* 표지 URL 캐시 (query → url) */
