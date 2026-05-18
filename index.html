@@ -837,38 +837,27 @@ function _bookRelevance(book, q) {
   return (titleMatches / words.length) * 400 + (authorMatches / words.length) * 100;
 }
 
-async function _googleSearchDirect(q, filterType) {
-  const qMap = {title:`intitle:${q}`, author:`inauthor:${q}`, publisher:`inpublisher:${q}`};
-  const gq = qMap[filterType] || q;
-  try {
-    const r = await fetch(`https://www.googleapis.com/books/v1/volumes?q=${encodeURIComponent(gq)}&langRestrict=ko&maxResults=40`);
-    const d = await r.json();
-    return (d.items||[]).map(v=>{
-      const i=v.volumeInfo;
-      return {title:i.title||'',author:(i.authors||[]).join(', '),publisher:i.publisher||'',
-        isbn:((i.industryIdentifiers||[]).find(x=>x.type==='ISBN_13')||{}).identifier||'',
-        cover:(i.imageLinks?.thumbnail||'').replace('http://','https://'),
-        link:i.infoLink||'',source:'google'};
-    });
-  } catch { return []; }
-}
-
 async function searchBooks(q, filterType) {
   filterType = filterType || 'all';
+  const url = `/api/book-search?q=${encodeURIComponent(q)}&filter_type=${filterType}&max_results=80`;
+  let lastErr = '';
   try {
-    const r = await fetch(`/api/book-search?q=${encodeURIComponent(q)}&filter_type=${filterType}&max_results=80`);
-    if (!r.ok) throw new Error('api error');
+    const r = await fetch(url);
+    if (!r.ok) { lastErr = `HTTP ${r.status}`; throw new Error(lastErr); }
     const data = await r.json();
     const out = data.books || [];
     if (out.length > 0) {
       out.sort((a, b) => _bookRelevance(b, q) - _bookRelevance(a, q));
       return out;
     }
-  } catch { /* fall through */ }
-  // 백엔드 미응답·빈 결과 시 Google Books 직접 호출
-  const fb = await _googleSearchDirect(q, filterType);
-  fb.sort((a, b) => _bookRelevance(b, q) - _bookRelevance(a, q));
-  return fb;
+    lastErr = 'empty';
+  } catch(e) {
+    lastErr = lastErr || e.message;
+    console.warn('[searchBooks] 백엔드 실패:', lastErr);
+  }
+  // 백엔드 실패 시 빈 배열 반환 (에러 메시지는 doSearch에서 표시)
+  window._lastSearchErr = lastErr;
+  return [];
 }
 
 /* 표지 URL 캐시 (query → url) */
@@ -2039,7 +2028,13 @@ async function doSearch() {
   res.innerHTML='<div class="loader"><span></span><span></span><span></span></div>';
   _srchFilter=filter;
   _srchQuery=q;
-  _srchBooks=await searchBooks(q, filter);
+  window._lastSearchErr='';
+  try {
+    _srchBooks=await searchBooks(q, filter);
+  } catch(e) {
+    _srchBooks=[];
+    window._lastSearchErr=e.message;
+  }
   _srchPage=0;
   renderSearchPage();
 }
@@ -2048,7 +2043,8 @@ function renderSearchPage() {
   const res=document.getElementById('srchResults');
   res.innerHTML='';
   if(!_srchBooks.length){
-    res.innerHTML='<p style="text-align:center;color:#aaa;padding:20px">검색 결과가 없습니다.</p>';
+    const errDetail = window._lastSearchErr ? ` (오류: ${window._lastSearchErr})` : '';
+    res.innerHTML=`<p style="text-align:center;color:#aaa;padding:20px">검색 결과가 없습니다.${errDetail}</p>`;
     return;
   }
   const total=_srchBooks.length;
