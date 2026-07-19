@@ -4,4 +4,7 @@ __pycache__/
 *.pyc
 .DS_Store
 server/nl_qa.db
+server/nl_qa.db-shm
+server/nl_qa.db-wal
 server/tfidf_cache.pkl
+server/semantic_cache.pkl

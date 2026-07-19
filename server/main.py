@@ -271,7 +271,7 @@ async def _enrich_with_books(answer_text: str, max_books: int = 5) -> list[dict]
     if not titles:
         return []
 
-    async with httpx.AsyncClient(timeout=8.0) as client:
+    async with httpx.AsyncClient(timeout=4.0) as client:
         async def _one(title: str) -> Optional[dict]:
             try:
                 r = await client.get(SEARCH_URL, params={

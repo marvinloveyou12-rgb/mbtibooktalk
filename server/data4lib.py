@@ -61,7 +61,7 @@ def search_books(query: str, top_k: int = 5) -> list[dict]:
     }
 
     try:
-        resp = httpx.get(f"{BASE_URL}/loanItemSrch", params=params, timeout=5.0)
+        resp = httpx.get(f"{BASE_URL}/loanItemSrch", params=params, timeout=2.5)
         resp.raise_for_status()
         data = resp.json()
 
