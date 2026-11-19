@@ -339,7 +339,7 @@ img{max-width:100%}
 }
 .lib-link:hover{opacity:.85;transform:translateY(-2px)}
 .ll-icon{font-size:1.5rem}
-.ll-aladin{background:linear-gradient(135deg,#FF7043,#E64A19)}
+.ll-yes24{background:linear-gradient(135deg,#3D8BFD,#1F5FD1)}
 .ll-google{background:linear-gradient(135deg,#9C6FDE,#7B4FBE)}
 
 .sec-card{background:var(--white);border-radius:var(--radius-lg);padding:22px;box-shadow:var(--shadow-sm);margin-bottom:18px}
@@ -785,28 +785,22 @@ async function addReview(bkey, text, mbti) {
 function bkey(isbn, title) { return (isbn||title||'x').replace(/[^a-zA-Z0-9가-힣]/g,'_').slice(0,80); }
 
 /* ══════════════════════════════════════════
-   API — ALADIN + GOOGLE BOOKS
+   API — YES24 (서버 프록시) + GOOGLE BOOKS
    ══════════════════════════════════════════ */
-const ALADIN_KEY = 'ttbpopi07062229002';
-
-function aladinSearch(q, queryType, start, maxResults) {
-  queryType = queryType || 'Keyword';
-  start = start || 1;
-  maxResults = maxResults || 50;
-  return new Promise(res => {
-    const cb='al_'+queryType.slice(0,1)+'_'+Date.now()+'_'+Math.random().toString(36).slice(2,6);
-    let done=false;
-    window[cb]=d=>{done=true;delete window[cb];
-      res((d.item||[]).map(b=>({title:b.title,author:b.author,publisher:b.publisher||'',
-        isbn:b.isbn13||b.isbn||'',cover:(b.cover||'').replace('coversum','cover200'),
-        link:b.link||'',desc:b.description||'',source:'aladin'})));
-    };
-    const s=document.createElement('script');
-    s.src=`https://www.aladin.co.kr/ttb/api/ItemSearch.aspx?ttbkey=${ALADIN_KEY}&Query=${encodeURIComponent(q)}&QueryType=${queryType}&MaxResults=${maxResults}&start=${start}&SearchTarget=Book&output=js&Version=20131101&CallBack=${cb}`;
-    s.onerror=()=>{if(!done)res([])};
-    document.head.appendChild(s);
-    setTimeout(()=>{if(!done){done=true;res([])}},7000);
-  });
+/* YES24 표지·소개 조회 — API가 CORS 미지원이라 서버(/api/book-info) 경유 */
+const _yes24InfoCache = {};
+function _yes24Info(query, isbn) {
+  const key = (isbn||'') + '|' + (query||'');
+  if (!_yes24InfoCache[key]) {
+    const params = new URLSearchParams({q: query||'', isbn: isbn||''});
+    const ctrl = new AbortController();
+    const t = setTimeout(() => ctrl.abort(), 7000);
+    _yes24InfoCache[key] = fetch(`/api/book-info?${params}`, {signal: ctrl.signal})
+      .then(r => r.ok ? r.json() : {})
+      .catch(() => ({}))
+      .finally(() => clearTimeout(t));
+  }
+  return _yes24InfoCache[key];
 }
 
 async function googleSearch(q) {
@@ -869,14 +863,14 @@ async function getCover(query, isbn) {
 
   let url = '';
 
-  /* 1순위: Aladin 키워드 검색 — 제목+저자 → 한국 도서 표지 정확도 최고 */
+  /* 1순위: YES24 키워드 검색 — 제목+저자 → 한국 도서 표지 정확도 최고 */
   if (query && !url) {
-    url = await _aladinCoverByQuery(query);
+    url = (await _yes24Info(query, '')).cover || '';
   }
 
-  /* 2순위: Aladin ItemLookUp — ISBN 직접 조회 (query 없을 때) */
+  /* 2순위: YES24 상품 상세 — ISBN 직접 조회 (query 없을 때) */
   if (isbn && !url) {
-    url = await _aladinCoverByIsbn(isbn);
+    url = (await _yes24Info('', isbn)).cover || '';
   }
 
   /* 3순위: Google Books — ISBN 검색 */
@@ -911,40 +905,6 @@ async function getCover(query, isbn) {
   return url;
 }
 
-/* Aladin Search JSONP — 키워드로 첫 번째 결과 표지 반환 */
-function _aladinCoverByQuery(query) {
-  return new Promise(resolve => {
-    const cb = '_acs_' + Date.now() + '_' + Math.random().toString(36).slice(2,7);
-    const s = document.createElement('script');
-    const t = setTimeout(() => { resolve(''); s.remove(); try{delete window[cb];}catch{} }, 5000);
-    window[cb] = data => {
-      clearTimeout(t); s.remove(); try{delete window[cb];}catch{}
-      const cover = data?.item?.[0]?.cover;
-      resolve(cover ? cover.replace('coversum','cover200') : '');
-    };
-    s.onerror = () => { clearTimeout(t); resolve(''); try{delete window[cb];}catch{} };
-    s.src = `https://www.aladin.co.kr/ttb/api/ItemSearch.aspx?ttbkey=${ALADIN_KEY}&Query=${encodeURIComponent(query)}&QueryType=Keyword&MaxResults=1&start=1&SearchTarget=Book&output=js&Version=20131101&CallBack=${cb}`;
-    document.head.appendChild(s);
-  });
-}
-
-/* Aladin ItemLookUp JSONP — ISBN으로 표지 반환 */
-function _aladinCoverByIsbn(isbn) {
-  return new Promise(resolve => {
-    const cb = '_aci_' + Date.now() + '_' + Math.random().toString(36).slice(2,7);
-    const s = document.createElement('script');
-    const t = setTimeout(() => { resolve(''); s.remove(); try{delete window[cb];}catch{} }, 5000);
-    window[cb] = data => {
-      clearTimeout(t); s.remove(); try{delete window[cb];}catch{}
-      const cover = data?.item?.[0]?.cover;
-      resolve(cover ? cover.replace('coversum','cover200') : '');
-    };
-    s.onerror = () => { clearTimeout(t); resolve(''); try{delete window[cb];}catch{} };
-    s.src = `https://www.aladin.co.kr/ttb/api/ItemLookUp.aspx?ttbkey=${ALADIN_KEY}&itemIdType=ISBN13&ItemId=${isbn}&output=js&Version=20131101&CallBack=${cb}`;
-    document.head.appendChild(s);
-  });
-}
-
 /* 이미지 URL 유효성 검사 (Open Library 1px GIF 걸러내기) */
 function _imgOk(url) {
   return new Promise(resolve => {
@@ -955,7 +915,7 @@ function _imgOk(url) {
   });
 }
 
-function aladinUrl(isbn,title){return isbn?`https://www.aladin.co.kr/shop/wproduct.aspx?ISBN=${isbn}`:`https://www.aladin.co.kr/search/wsearchresult.aspx?SearchTarget=Book&query=${encodeURIComponent(title)}`;}
+function yes24Url(isbn,title){return `https://www.yes24.com/product/search?domain=BOOK&query=${encodeURIComponent(isbn||title)}`;}
 function googleUrl(title,author){return `https://books.google.com/books?q=${encodeURIComponent(title+' '+author)}`;}
 
 /* ══════════════════════════════════════════
@@ -1103,8 +1063,8 @@ function curRender(data) {
   if(topRecs.length) {
     html += `<div class="cur-saseo-grid" id="curRecGrid">`;
     topRecs.forEach((b, i) => {
-      const aladinHref = `https://www.aladin.co.kr/search/wsearchresult.aspx?SearchWord=${encodeURIComponent(b.title)}`;
-      html += `<a class="cur-rec-card" href="${_e(b.detail_link||aladinHref)}" target="_blank" rel="noopener" style="text-decoration:none;display:block" id="curRecCard${i}">
+      const yes24Href = yes24Url('', b.title);
+      html += `<a class="cur-rec-card" href="${_e(b.detail_link||yes24Href)}" target="_blank" rel="noopener" style="text-decoration:none;display:block" id="curRecCard${i}">
         <div class="cur-rec-ph" id="curRecPh${i}">📖</div>
         <div class="cur-rec-body">
           <div class="cur-rec-title">${_e(b.title)}</div>
@@ -2174,7 +2134,7 @@ function renderDetail() {
     <div class="sec-card" style="padding:18px;margin-bottom:18px">
       <div class="sec-title">🔗 바로가기</div>
       <div class="link-grid">
-        <a href="${aladinUrl(b.isbn,b.title)}" target="_blank" class="lib-link ll-aladin"><span class="ll-icon">📦</span>알라딘</a>
+        <a href="${yes24Url(b.isbn,b.title)}" target="_blank" class="lib-link ll-yes24"><span class="ll-icon">📦</span>YES24</a>
         <a href="${googleUrl(b.title,b.author)}" target="_blank" class="lib-link ll-google"><span class="ll-icon">📖</span>구글 북스</a>
       </div>
     </div>
@@ -2210,12 +2170,12 @@ async function _loadDesc(b) {
   if (!el) return;
   const q = (b.title||'') + ' ' + (b.author||'');
 
-  /* 1순위: Aladin ItemLookUp (ISBN) */
+  /* 1순위: YES24 상품 상세 (ISBN) */
   let desc = '';
-  if (b.isbn) desc = await _aladinDescByIsbn(b.isbn);
+  if (b.isbn) desc = (await _yes24Info('', b.isbn)).desc || '';
 
-  /* 2순위: Aladin ItemSearch (키워드) */
-  if (!desc) desc = await _aladinDescByQuery(q);
+  /* 2순위: YES24 상품 검색 (키워드) */
+  if (!desc) desc = (await _yes24Info(q, '')).desc || '';
 
   /* 3순위: Google Books */
   if (!desc) {
@@ -2231,36 +2191,6 @@ async function _loadDesc(b) {
 
   if (!el.isConnected) return;
   el.textContent = desc ? desc.slice(0,500)+(desc.length>500?'…':'') : '책 소개 정보가 없습니다.';
-}
-
-function _aladinDescByIsbn(isbn) {
-  return new Promise(resolve => {
-    const cb = '_adi_'+Date.now()+'_'+Math.random().toString(36).slice(2,7);
-    const s = document.createElement('script');
-    const t = setTimeout(()=>{ resolve(''); s.remove(); try{delete window[cb];}catch{} }, 5000);
-    window[cb] = data => {
-      clearTimeout(t); s.remove(); try{delete window[cb];}catch{}
-      resolve(data?.item?.[0]?.description||'');
-    };
-    s.onerror = ()=>{ clearTimeout(t); resolve(''); try{delete window[cb];}catch{} };
-    s.src = `https://www.aladin.co.kr/ttb/api/ItemLookUp.aspx?ttbkey=${ALADIN_KEY}&itemIdType=ISBN13&ItemId=${isbn}&output=js&Version=20131101&OptResult=description&CallBack=${cb}`;
-    document.head.appendChild(s);
-  });
-}
-
-function _aladinDescByQuery(q) {
-  return new Promise(resolve => {
-    const cb = '_adq_'+Date.now()+'_'+Math.random().toString(36).slice(2,7);
-    const s = document.createElement('script');
-    const t = setTimeout(()=>{ resolve(''); s.remove(); try{delete window[cb];}catch{} }, 5000);
-    window[cb] = data => {
-      clearTimeout(t); s.remove(); try{delete window[cb];}catch{}
-      resolve(data?.item?.[0]?.description||'');
-    };
-    s.onerror = ()=>{ clearTimeout(t); resolve(''); try{delete window[cb];}catch{} };
-    s.src = `https://www.aladin.co.kr/ttb/api/ItemSearch.aspx?ttbkey=${ALADIN_KEY}&Query=${encodeURIComponent(q)}&QueryType=Keyword&MaxResults=1&start=1&SearchTarget=Book&output=js&Version=20131101&CallBack=${cb}`;
-    document.head.appendChild(s);
-  });
 }
 
 function setCoverDetail(url) {

@@ -79,38 +79,73 @@ def _startup():
 _threading.Thread(target=_startup, daemon=True).start()
 
 
-# ── 알라딘 TTB API ───────────────────────────────────────────
-_ALADIN_KEY = "ttbpopi07062229002"
-_ALADIN_SEARCH_URL = "https://www.aladin.co.kr/ttb/api/ItemSearch.aspx"
+# ── YES24 Open API ───────────────────────────────────────────
+_YES24_KEY = os.getenv("YES24_API_KEY", "")
+_YES24_BASE = "https://apis.yes24.com/v1/goods"
 _GOOGLE_BOOKS_URL  = "https://www.googleapis.com/books/v1/volumes"
+_TAG_RE = re.compile(r"<[^>]+>")
 
 
-async def _aladin_search(q: str, query_type: str, start: int = 1, max_results: int = 50) -> list[dict]:
-    cb = "_x"
-    params = {
-        "ttbkey": _ALADIN_KEY, "Query": q, "QueryType": query_type,
-        "MaxResults": max_results, "start": start, "SearchTarget": "Book",
-        "output": "js", "Version": "20131101", "CallBack": cb,
+def _yes24_book(b: dict) -> dict:
+    cd = b.get("contentDetail") or {}
+    desc = cd.get("bookIntroduction") or cd.get("bookSummary") or ""
+    return {
+        "title":     b.get("title", ""),
+        "author":    b.get("author", ""),
+        "publisher": b.get("publisher", ""),
+        "isbn":      b.get("isbn13") or "",
+        "cover":     b.get("cover") or "",
+        "link":      b.get("link", ""),
+        "desc":      _TAG_RE.sub("", desc).strip(),
+        "source":    "yes24",
     }
-    try:
-        async with httpx.AsyncClient(timeout=8.0) as client:
-            r = await client.get(_ALADIN_SEARCH_URL, params=params)
-        text = r.text.strip()
-        if text.startswith(cb + "(") and text.endswith(")"):
-            text = text[len(cb) + 1:-1]
-        data = json.loads(text)
-        return [{
-            "title":     b.get("title", ""),
-            "author":    b.get("author", ""),
-            "publisher": b.get("publisher", ""),
-            "isbn":      b.get("isbn13") or b.get("isbn") or "",
-            "cover":     (b.get("cover") or "").replace("coversum", "cover200"),
-            "link":      b.get("link", ""),
-            "source":    "aladin",
-        } for b in data.get("item", [])]
-    except Exception as e:
-        print(f"[book-search] aladin error: {e}")
+
+
+async def _yes24_get(path: str, params: dict) -> list[dict]:
+    if not _YES24_KEY:
+        print("[yes24] YES24_API_KEY 미설정")
         return []
+    try:
+        async with httpx.AsyncClient(timeout=6.0) as client:
+            r = await client.get(f"{_YES24_BASE}/{path}", params=params,
+                                 headers={"X-Api-Key": _YES24_KEY})
+        if r.status_code != 200:
+            print(f"[yes24] {path} HTTP {r.status_code}: {r.text[:200]}")
+            return []
+        return [_yes24_book(b) for b in (r.json().get("data") or {}).get("items") or []]
+    except Exception as e:
+        print(f"[yes24] {path} error: {e}")
+        return []
+
+
+async def _yes24_search(q: str, page: int = 1, page_size: int = 50) -> list[dict]:
+    return await _yes24_get("itemList", {
+        "query": q, "category": "BOOK", "sort": "RELATION",
+        "page": page, "pageSize": page_size,
+    })
+
+
+# 표지·소개 조회 결과 캐시 (일일 호출 한도 절약)
+_book_info_cache: dict[str, dict] = {}
+
+
+async def _yes24_info(q: str, isbn: str) -> dict:
+    key = isbn or q
+    if key in _book_info_cache:
+        return _book_info_cache[key]
+    items = []
+    if isbn:
+        items = await _yes24_get("itemDetail", {"searchType": "ISBN13", "query": isbn})
+    if not items and q:
+        # 세트 상품은 ISBN이 비어 있어 단권보다 앞에 나오는 경우가 많으므로 단권을 우선한다
+        found = await _yes24_search(q, 1, 10)
+        items = [b for b in found if b["isbn"]] or found
+    b = items[0] if items else {}
+    info = {"cover": b.get("cover", ""), "desc": b.get("desc", ""), "link": b.get("link", "")}
+    if len(_book_info_cache) > 5000:
+        _book_info_cache.clear()
+    _book_info_cache[key] = info
+    return info
 
 
 async def _google_books_search(q: str, max_results: int = 40) -> list[dict]:
@@ -468,37 +503,46 @@ async def analyze(
     }
 
 
-# ── 도서 검색 프록시 (알라딘 + Google Books) ─────────────────
+# ── 도서 검색 프록시 (YES24 + Google Books) ──────────────────
 @app.get("/api/book-search")
 async def book_search_proxy(
     q: str = Query(..., description="검색어"),
     filter_type: str = Query("all", description="all|title|author|publisher"),
     max_results: int = Query(30, ge=1, le=100),
 ):
-    qt_map = {"title": "Title", "author": "Author", "publisher": "Publisher"}
-    qt = qt_map.get(filter_type, "Keyword")
+    field_map = {"title": "title", "author": "author", "publisher": "publisher"}
 
-    if filter_type in qt_map:
-        aladin_calls = [_aladin_search(q, qt, 1, 50)]
+    if filter_type in field_map:
         google_q = {"title": f"intitle:{q}", "author": f"inauthor:{q}", "publisher": f"inpublisher:{q}"}[filter_type]
     else:
-        aladin_calls = [
-            _aladin_search(q, "Title",   1,  50),
-            _aladin_search(q, "Title",  51,  50),
-            _aladin_search(q, "Keyword", 1,  50),
-            _aladin_search(q, "Keyword", 51, 50),
-        ]
         google_q = q
 
-    results = await asyncio.gather(*aladin_calls, _google_books_search(google_q))
+    results = await asyncio.gather(
+        _yes24_search(q, 1, 50), _yes24_search(q, 2, 50), _google_books_search(google_q),
+    )
+    items = [item for sub in results for item in sub]
+
+    # YES24는 필드별 검색이 없으므로 결과에서 해당 필드로 거른다
+    if filter_type in field_map:
+        f, needle = field_map[filter_type], q.replace(" ", "").lower()
+        items = [b for b in items if needle in (b[f] or "").replace(" ", "").lower()]
+
     seen, books = set(), []
-    for b in [item for sub in results for item in sub]:
+    for b in items:
         key = b["isbn"] or (b["title"] + b["author"])
         if key not in seen:
             seen.add(key)
             books.append(b)
 
     return {"books": books[:max_results]}
+
+
+# ── 표지·책 소개 조회 (YES24) ────────────────────────────────
+@app.get("/api/book-info")
+async def book_info(q: str = Query("", description="제목+저자"), isbn: str = Query("")):
+    if not q and not isbn:
+        raise HTTPException(status_code=400, detail="q 또는 isbn 필요")
+    return await _yes24_info(q.strip(), isbn.strip())
 
 
 # 상위 디렉터리(mbtibooktalk 루트)를 정적으로 서빙
