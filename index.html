@@ -743,43 +743,106 @@ img{max-width:100%}
 
 <script>
 /* ══════════════════════════════════════════
-   DB — localStorage only
+   DB — 서버 저장(/api/community) + localStorage 캐시
+   공유 데이터(추천·후기·하트 수·참가자)는 서버가 원본이고,
+   localStorage에는 화면을 바로 그리기 위한 사본과 "내가 누른 하트" 표시만 둔다.
    ══════════════════════════════════════════ */
+async function _api(path, body) {
+  const r = await fetch(path, body === undefined ? {} : {
+    method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body)});
+  if (!r.ok) throw new Error(`HTTP ${r.status}`);
+  return r.json();
+}
+
+let _recSubs = {};   /* type → 화면 갱신 콜백 */
+let _syncDone = false;
+
+/* 서버 데이터를 받아 캐시(localStorage)에 반영 */
+async function syncCommunity() {
+  try {
+    let d = await _api('/api/community');
+    if (!d.persistent) { console.warn('[community] 서버 영구 저장소 미설정 — 로컬 사본 유지'); return; }
+    if (!lsGet('_migrated_v1', false)) { await _migrateLocalData(); d = await _api('/api/community'); }
+    Object.keys(MBTI_DATA).forEach(t => lsSet('recs_'+t, d.recs?.[t] || []));
+    Object.entries(d.hearts || {}).forEach(([k,n]) => {
+      if (k.startsWith('htc_') || k.startsWith('hdc_')) lsSet(k, n);
+    });
+    lsSet('_pcounts', d.participants || {});
+    _syncDone = true;
+    Object.entries(_recSubs).forEach(([t,cb]) => cb && cb(lsGet('recs_'+t,[])));
+    if (state.page === 'select' || state.page === 'room') renderPage();
+  } catch(e) { console.warn('[community] 동기화 실패:', e.message); }
+}
+
+/* 서버 저장 도입 전 각 브라우저에만 남아 있던 기록을 한 번 서버로 옮긴다 */
+async function _migrateLocalData() {
+  if (lsGet('_migrated_v1', false)) return;
+  const recs = {}, reviews = {}, hearts = [];
+  for (let i = 0; i < localStorage.length; i++) {
+    const k = localStorage.key(i);
+    const v = lsGet(k, null);
+    if (k.startsWith('recs_') && Array.isArray(v) && v.length) recs[k.slice(5)] = v;
+    else if (k.startsWith('rev_') && Array.isArray(v) && v.length) reviews[k.slice(4)] = v;
+    else if (v === true && k.startsWith('ht_r_')) hearts.push('rc_'+k.slice(5));
+    else if (v === true && k.startsWith('ht_')) hearts.push('htc_'+k.slice(3));
+    else if (v === true && k.startsWith('hd_')) hearts.push('hdc_'+k.slice(3));
+  }
+  if (Object.keys(recs).length || Object.keys(reviews).length || hearts.length) {
+    await _api('/api/community/import', {userKey:getUserKey(), recs, reviews, hearts});
+  }
+  lsSet('_migrated_v1', true);
+}
+
 async function addRec(type, book, review) {
-  const rec = { title:book.title||'', author:book.author||'', isbn:book.isbn||'', cover:book.cover||'',
-    publisher:book.publisher||'', review:review||'', hearts:0, userKey:getUserKey(),
-    createdAt:new Date().toISOString() };
-  const l=lsGet('recs_'+type,[]); l.unshift({...rec,id:Date.now()+''}); lsSet('recs_'+type,l);
+  const rec = await _api('/api/community/recs', {type, title:book.title||'', author:book.author||'',
+    isbn:book.isbn||'', cover:book.cover||'', publisher:book.publisher||'', review:review||'',
+    userKey:getUserKey()});
+  const l=lsGet('recs_'+type,[]); l.unshift(rec); lsSet('recs_'+type,l);
   recordParticipation(type);
 }
 
 function subscribeRecs(type, cb) {
+  _recSubs[type] = cb;
   cb(lsGet('recs_'+type,[]));
-  return ()=>{};
+  if (_syncDone) _api('/api/community').then(d => {
+    lsSet('recs_'+type, d.recs?.[type] || []);
+    if (_recSubs[type] === cb) cb(lsGet('recs_'+type,[]));
+  }).catch(()=>{});
+  return ()=>{ if (_recSubs[type] === cb) delete _recSubs[type]; };
+}
+
+/* 공유 하트 수 토글 — 서버가 사용자별로 기록해 정확한 수를 돌려준다 */
+async function setSharedHeart(countKey, on, type) {
+  const d = await _api('/api/community/heart', {key:countKey, userKey:getUserKey(), on, type:type||state.type||''});
+  return d.count;
 }
 
 async function toggleRecHeart(type, docId, hearted) {
   const lk='ht_r_'+type+'_'+docId;
   const nowHearted = !hearted;
+  const count = await setSharedHeart('rc_'+type+'_'+docId, nowHearted, type);
   lsSet(lk, nowHearted);
   const recs = lsGet('recs_'+type, []);
   const rec = recs.find(r => r.id === docId);
-  if (rec) {
-    rec.hearts = Math.max(0, (rec.hearts||0) + (nowHearted ? 1 : -1));
-    lsSet('recs_'+type, recs);
-  }
+  if (rec) { rec.hearts = count; lsSet('recs_'+type, recs); }
   return nowHearted;
 }
 
+let _revSub = null;
 function subscribeReviews(bkey, cb) {
+  _revSub = {bkey, cb};
   cb(lsGet('rev_'+bkey,[]));
-  return ()=>{};
+  _api('/api/community/reviews?bkey='+encodeURIComponent(bkey)).then(d => {
+    lsSet('rev_'+bkey, d.reviews||[]);
+    if (_revSub?.cb === cb) cb(d.reviews||[]);
+  }).catch(()=>{});
+  return ()=>{ if (_revSub?.cb === cb) _revSub = null; };
 }
 
 async function addReview(bkey, text, mbti) {
-  const r={text,mbti:mbti||'MBTI',userKey:getUserKey(),dateStr:new Date().toLocaleDateString('ko-KR'),
-    createdAt:new Date().toISOString()};
-  const l=lsGet('rev_'+bkey,[]); l.unshift({...r,id:Date.now()+''}); lsSet('rev_'+bkey,l);
+  const r = await _api('/api/community/reviews', {bkey, text, mbti:mbti||'MBTI', userKey:getUserKey()});
+  const l=lsGet('rev_'+bkey,[]); l.unshift(r); lsSet('rev_'+bkey,l);
+  if (_revSub?.bkey === bkey) _revSub.cb(l);
 }
 
 function bkey(isbn, title) { return (isbn||title||'x').replace(/[^a-zA-Z0-9가-힣]/g,'_').slice(0,80); }
@@ -1855,20 +1918,20 @@ function makeCard(book, source, recId, rank) {
   card.innerHTML=`
     <div class="cover-wrap" style="position:relative">
       ${rankHtml}
-      ${book.cover?`<img class="cover-img" src="${book.cover}" alt="${book.title}" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">`:``}
+      ${book.cover?`<img class="cover-img" src="${_e(book.cover)}" alt="${_e(book.title)}" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">`:``}
       <div class="cover-ph" ${book.cover?'style="display:none"':''}>📚</div>
     </div>
     <div class="book-info">
-      <div class="book-title">${book.title}</div>
-      <div class="book-author">${book.author}</div>
+      <div class="book-title">${_e(book.title)}</div>
+      <div class="book-author">${_e(book.author)}</div>
       <div class="book-foot">
-        <button class="hbtn${hearted?' hearted':''}" data-hk="${hk}" data-type="${source==='user'?state.type:''}" data-doc="${recId||''}" data-src="${source}"
+        <button class="hbtn${hearted?' hearted':''}" data-hk="${_e(hk)}" data-type="${source==='user'?state.type:''}" data-doc="${_e(recId||'')}" data-src="${source}"
           onclick="event.stopPropagation();handleHeart(this)">
           ${hearted?'❤️':'🤍'}<span class="hcnt">${hearts}</span>
         </button>
         <span class="badge ${source==='curated'?'badge-cur':'badge-usr'}">${source==='curated'?'큐레이션':'추천'}</span>
       </div>
-      ${book.reason?`<div class="reason-snip">"${book.reason}"</div>`:book.review?`<div class="reason-snip">"${book.review}"</div>`:''}
+      ${book.reason?`<div class="reason-snip">"${book.reason}"</div>`:book.review?`<div class="reason-snip">"${_e(book.review)}"</div>`:''}
     </div>`;
   card.onclick=()=>openBook(book);
   return card;
@@ -1951,21 +2014,25 @@ async function handleHeart(btn) {
       nowHearted=await toggleRecHeart(btn.dataset.type,btn.dataset.doc,hearted);
     } else {
       nowHearted=!hearted;
-      lsSet(hk,nowHearted);
       if(btn.dataset.src==='curated'){
         const ck='htc_'+hk.slice(3);
-        lsSet(ck,Math.max(0,lsGet(ck,0)+(nowHearted?1:-1)));
+        lsSet(ck, await setSharedHeart(ck,nowHearted));
       }
+      lsSet(hk,nowHearted);
     }
     btn.classList.toggle('hearted',nowHearted);
-    const newCount = nowHearted ? count+1 : Math.max(0,count-1);
+    const newCount = btn.dataset.src==='user'
+      ? (lsGet('recs_'+btn.dataset.type,[]).find(r=>r.id===btn.dataset.doc)?.hearts ?? count)
+      : btn.dataset.src==='curated' ? lsGet('htc_'+hk.slice(3),0)
+      : (nowHearted ? count+1 : Math.max(0,count-1));
     btn.innerHTML=`${nowHearted?'❤️':'🤍'}<span class="hcnt">${newCount}</span>`;
     const statEl=document.getElementById('statHearts');
     if(statEl){
       const commBooks = lsGet('recs_'+state.type, []);
       statEl.textContent = calcTotalHearts(state.type, commBooks);
     }
-  } finally { btn.disabled=false; }
+  } catch(e) { console.error(e); showToast('하트 저장에 실패했어요. 잠시 후 다시 시도해 주세요.'); }
+  finally { btn.disabled=false; }
 }
 
 let _srchBooks=[], _srchPage=0, _srchFilter='all', _srchQuery='';
@@ -2121,10 +2188,10 @@ function renderDetail() {
   <div class="detail-hero">
     <div class="detail-cover-wrap" id="dcWrap"><span id="dcPh">📚</span></div>
     <div>
-      <div class="detail-title">${b.title||'알 수 없는 책'}</div>
-      <div class="detail-author">${b.author||''}</div>
-      <div class="detail-pub">${b.publisher||''}</div>
-      <button class="heart-big${localHearted?' hearted':''}" id="heartBig" onclick="toggleDetailHeart('${bk}',${isCurated},'${bookKey}')">
+      <div class="detail-title">${_e(b.title)||'알 수 없는 책'}</div>
+      <div class="detail-author">${_e(b.author)}</div>
+      <div class="detail-pub">${_e(b.publisher)}</div>
+      <button class="heart-big${localHearted?' hearted':''}" id="heartBig" onclick="toggleDetailHeart(${_e(JSON.stringify(bk))},${isCurated},${_e(JSON.stringify(bookKey))})">
         ${localHearted?'❤️':'🤍'} <span id="hdCount">${localCount}</span> 하트
       </button>
     </div>
@@ -2140,7 +2207,7 @@ function renderDetail() {
     </div>
     <div class="sec-card" id="descCard">
       <div class="sec-title">📋 책 소개</div>
-      <div class="desc-text" id="descText">${b.desc||'불러오는 중…'}</div>
+      <div class="desc-text" id="descText">${_e(b.desc)||'불러오는 중…'}</div>
     </div>
     <div class="sec-card">
       <div class="sec-title">💬 독서 후기</div>
@@ -2205,13 +2272,16 @@ async function toggleDetailHeart(bk, isCurated, bookKey) {
   const btn=document.getElementById('heartBig');
   const hearted=btn.classList.contains('hearted');
   const count=parseInt(document.getElementById('hdCount').textContent)||0;
-  const now=!hearted; const nc=now?count+1:Math.max(0,count-1);
-  if(isCurated===true||isCurated==='true'){
-    lsSet('ht_'+bookKey,now);
-    lsSet('htc_'+bookKey,Math.max(0,lsGet('htc_'+bookKey,0)+(now?1:-1)));
-  } else {
-    lsSet('hd_'+bk,now);lsSet('hdc_'+bk,nc);
-  }
+  const now=!hearted;
+  const curated=isCurated===true||isCurated==='true';
+  const ck=curated?'htc_'+bookKey:'hdc_'+bk;
+  let nc;
+  btn.disabled=true;
+  try { nc=await setSharedHeart(ck,now); }
+  catch(e) { showToast('하트 저장에 실패했어요. 잠시 후 다시 시도해 주세요.'); return; }
+  finally { btn.disabled=false; }
+  lsSet(ck,nc);
+  lsSet(curated?'ht_'+bookKey:'hd_'+bk,now);
   btn.className='heart-big'+(now?' hearted':'');
   btn.innerHTML=`${now?'❤️':'🤍'} <span id="hdCount">${nc}</span> 하트`;
   recordParticipation(state.type);
@@ -2226,7 +2296,7 @@ function renderRevs(reviews, bk) {
     const el=document.createElement('div');el.className='rev-item';
     const col=(MBTI_DATA[r.mbti]||{}).color||'#888';
     const ds=r.dateStr||(r.createdAt?.toDate?r.createdAt.toDate().toLocaleDateString('ko-KR'):'');
-    el.innerHTML=`<div class="rev-head"><span class="rev-mbti" style="background:${col}">${r.mbti}</span><span class="rev-date">${ds}</span></div><div class="rev-text">${r.text}</div>`;
+    el.innerHTML=`<div class="rev-head"><span class="rev-mbti" style="background:${col}">${_e(r.mbti)}</span><span class="rev-date">${_e(ds)}</span></div><div class="rev-text">${_e(r.text)}</div>`;
     list.appendChild(el);
   });
 }
@@ -2253,9 +2323,15 @@ function recordParticipation(type) {
   const key='participants_'+type;
   const list=lsGet(key,[]);
   const uid=getUserKey();
-  if(!list.includes(uid)){list.push(uid);lsSet(key,list);}
+  if(!list.includes(uid)){
+    list.push(uid);lsSet(key,list);
+    _api('/api/community/participate',{type,userKey:uid}).catch(()=>{});
+  }
 }
-function getParticipantCount(type){return lsGet('participants_'+type,[]).length;}
+function getParticipantCount(type){
+  const server=lsGet('_pcounts',null);
+  return server ? (server[type]||0) : lsGet('participants_'+type,[]).length;
+}
 function _backfillParticipants(){
   Object.keys(MBTI_DATA).forEach(type=>{
     const recs=lsGet('recs_'+type,[]);
@@ -2524,6 +2600,7 @@ state.type=lsGet('myMBTI','INTJ');
 _backfillParticipants();
 startOnlineTracker();
 renderPage();
+syncCommunity();
 </script>
 </body>
 </html>

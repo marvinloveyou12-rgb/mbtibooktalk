@@ -21,6 +21,7 @@ from .crawler import crawl_state, run_crawl
 from .search_engine import hybrid_search, build_index, invalidate_cache
 from .search_engine import build_index as _build_index
 from .claude_chat import get_librarian_response
+from . import community_store as _cs
 
 app = FastAPI(title="도서 큐레이션 API")
 
@@ -77,6 +78,12 @@ def _startup():
             print(f"[startup] semantic index 빌드 스킵: {e}")
 
 _threading.Thread(target=_startup, daemon=True).start()
+_cs.start()
+
+
+@app.on_event("shutdown")
+def _flush_community():
+    _cs.flush()
 
 
 # ── YES24 Open API ───────────────────────────────────────────
@@ -543,6 +550,116 @@ async def book_info(q: str = Query("", description="제목+저자"), isbn: str =
     if not q and not isbn:
         raise HTTPException(status_code=400, detail="q 또는 isbn 필요")
     return await _yes24_info(q.strip(), isbn.strip())
+
+
+# ── 커뮤니티 데이터 (추천 도서·후기·하트·참가자) ──────────────
+_MBTI_RE = re.compile(r"^[EI][NS][TF][JP]$")
+
+
+class RecIn(BaseModel):
+    type: str
+    title: str
+    author: str = ""
+    isbn: str = ""
+    cover: str = ""
+    publisher: str = ""
+    review: str = ""
+    userKey: str
+
+
+class ReviewIn(BaseModel):
+    bkey: str
+    text: str
+    mbti: str = "MBTI"
+    userKey: str
+
+
+class HeartIn(BaseModel):
+    key: str
+    userKey: str
+    on: bool
+    type: str = ""
+
+
+class ParticipateIn(BaseModel):
+    type: str
+    userKey: str
+
+
+class ImportIn(BaseModel):
+    userKey: str
+    recs: dict = {}
+    reviews: dict = {}
+    hearts: list = []
+
+
+def _require_ready():
+    # 원격 복원 전에 쓰면 복원 시 덮어써져 유실되므로 잠시 거절
+    if not _cs.is_ready():
+        raise HTTPException(status_code=503, detail="저장소 준비 중입니다. 잠시 후 다시 시도해 주세요.")
+
+
+def _check_type(t: str):
+    if not _MBTI_RE.match(t or ""):
+        raise HTTPException(status_code=400, detail="잘못된 MBTI 유형")
+
+
+@app.get("/api/community")
+async def community_snapshot():
+    return _cs.snapshot()
+
+
+@app.get("/api/community/status")
+async def community_status():
+    return _cs.status()
+
+
+@app.post("/api/community/recs")
+async def community_add_rec(body: RecIn):
+    _require_ready()
+    _check_type(body.type)
+    if not body.title.strip() or not body.userKey:
+        raise HTTPException(status_code=400, detail="title, userKey 필요")
+    return _cs.add_rec(body.type, body.model_dump())
+
+
+@app.get("/api/community/reviews")
+async def community_reviews(bkey: str = Query(...)):
+    return {"reviews": _cs.get_reviews(bkey)}
+
+
+@app.post("/api/community/reviews")
+async def community_add_review(body: ReviewIn):
+    _require_ready()
+    if not body.text.strip() or not body.bkey or not body.userKey:
+        raise HTTPException(status_code=400, detail="bkey, text, userKey 필요")
+    return _cs.add_review(body.bkey[:100], body.model_dump())
+
+
+@app.post("/api/community/heart")
+async def community_heart(body: HeartIn):
+    _require_ready()
+    if not body.key or not body.userKey:
+        raise HTTPException(status_code=400, detail="key, userKey 필요")
+    mbti = body.type if _MBTI_RE.match(body.type or "") else ""
+    return {"count": _cs.set_heart(body.key[:200], body.userKey[:64], body.on, mbti)}
+
+
+@app.post("/api/community/participate")
+async def community_participate(body: ParticipateIn):
+    _require_ready()
+    _check_type(body.type)
+    _cs.participate(body.type, body.userKey[:64])
+    return {"ok": True}
+
+
+@app.post("/api/community/import")
+async def community_import(body: ImportIn):
+    _require_ready()
+    recs = {t: v for t, v in body.recs.items() if _MBTI_RE.match(t) and isinstance(v, list)}
+    reviews = {k[:100]: v for k, v in body.reviews.items() if isinstance(v, list)}
+    hearts = [h for h in body.hearts if isinstance(h, str)][:500]
+    return {"added": _cs.import_local(body.userKey[:64], recs, reviews, hearts)}
 
 
 # 상위 디렉터리(mbtibooktalk 루트)를 정적으로 서빙

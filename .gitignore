@@ -8,3 +8,4 @@ server/nl_qa.db-shm
 server/nl_qa.db-wal
 server/tfidf_cache.pkl
 server/semantic_cache.pkl
+data/
