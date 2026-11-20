@@ -12,8 +12,11 @@
 - GITHUB_DATA_BRANCH     : 기본 "data" (main에 쓰면 코드 push가 충돌하므로 분리)
 - GITHUB_SYNC_SECONDS    : GitHub 업로드 주기 (기본 300초)
 """
+import hashlib
+import hmac
 import json
 import os
+import secrets
 import threading
 import time
 import uuid
@@ -34,11 +37,14 @@ GITHUB_SYNC_SECONDS = int(os.getenv("GITHUB_SYNC_SECONDS", "300"))
 
 DATA_FILE = "community.json"
 LOG_FILE = "log.jsonl"
+# 관리자 비밀번호(해시). GitHub 공개 사본에는 올리지 않고 HF 비공개 데이터셋에만 둔다.
+ADMIN_FILE = "admin.json"
 
 _lock = threading.RLock()
 # deleted: 관리자가 지운 항목 id — 브라우저에 남은 옛 데이터를 이관할 때 되살아나지 않게 한다
 _data = {"recs": {}, "reviews": {}, "hearts": {}, "participants": {}, "deleted": {}}
 _log_lines: list[str] = []
+_admin: dict = {}  # {"salt", "hash", "updatedAt"} — 비어 있으면 ADMIN_PASSWORD 환경변수 사용
 _dirty = False
 _gh_dirty = False
 _gh_last = 0.0
@@ -99,6 +105,15 @@ def _load_remote() -> bool:
     except Exception as e:
         print(f"[community] create_repo 실패(무시하고 진행): {e}")
     try:
+        p = hf_hub_download(DATA_REPO, ADMIN_FILE, repo_type="dataset", token=HF_TOKEN,
+                            force_download=True, local_dir=os.path.join(LOCAL_DIR, ".remote"))
+        with open(p, encoding="utf-8") as f:
+            _admin.clear()
+            _admin.update(json.load(f))
+        _write_admin_local()
+    except missing + (hf_errors.RepositoryNotFoundError,):
+        pass
+    try:
         p = hf_hub_download(DATA_REPO, DATA_FILE, repo_type="dataset", token=HF_TOKEN,
                             force_download=True, local_dir=os.path.join(LOCAL_DIR, ".remote"))
         with open(p, encoding="utf-8") as f:
@@ -123,7 +138,20 @@ def _load_remote() -> bool:
     return True
 
 
+def _write_admin_local():
+    os.makedirs(LOCAL_DIR, exist_ok=True)
+    with open(_local_path(ADMIN_FILE), "w", encoding="utf-8") as f:
+        json.dump(_admin, f)
+
+
 def _load_local():
+    try:
+        with open(_local_path(ADMIN_FILE), encoding="utf-8") as f:
+            _admin.update(json.load(f))
+    except FileNotFoundError:
+        pass
+    except Exception as e:
+        print(f"[community] 관리자 설정 읽기 실패: {e}")
     try:
         with open(_local_path(DATA_FILE), encoding="utf-8") as f:
             data = json.load(f)
@@ -149,11 +177,14 @@ def _upload():
             return
         payload = json.dumps(_data, ensure_ascii=False, indent=1).encode("utf-8")
         log_bytes = "".join(_log_lines).encode("utf-8")
+        ops = [CommitOperationAdd(DATA_FILE, payload), CommitOperationAdd(LOG_FILE, log_bytes)]
+        if _admin:
+            ops.append(CommitOperationAdd(ADMIN_FILE, json.dumps(_admin).encode("utf-8")))
         _dirty = False
     try:
         HfApi(token=HF_TOKEN).create_commit(
             DATA_REPO, repo_type="dataset",
-            operations=[CommitOperationAdd(DATA_FILE, payload), CommitOperationAdd(LOG_FILE, log_bytes)],
+            operations=ops,
             commit_message=f"community data {_now()}",
         )
         _status["last_sync"] = _now()
@@ -427,3 +458,35 @@ def admin_delete(kind: str, group: str, item_id: str) -> bool:
         _data["deleted"].setdefault(section, []).append(item_id)
         _changed({"action": f"admin_delete_{kind}", "group": group, "item": item})
     return True
+
+
+def _hash_pw(password: str, salt: str) -> str:
+    return hashlib.pbkdf2_hmac("sha256", password.encode("utf-8"), bytes.fromhex(salt), 200_000).hex()
+
+
+def admin_configured(env_password: str) -> bool:
+    return bool(_admin.get("hash")) or bool(env_password)
+
+
+def check_admin_password(password: str, env_password: str) -> bool:
+    """관리 화면에서 바꾼 비밀번호가 있으면 그것을, 없으면 ADMIN_PASSWORD 환경변수를 쓴다."""
+    password = password or ""
+    with _lock:
+        if _admin.get("hash"):
+            return hmac.compare_digest(_hash_pw(password, _admin["salt"]), _admin["hash"])
+    return bool(env_password) and hmac.compare_digest(password.encode(), env_password.encode())
+
+
+def set_admin_password(new_password: str):
+    global _dirty
+    salt = secrets.token_hex(16)
+    with _lock:
+        _admin.clear()
+        _admin.update({"salt": salt, "hash": _hash_pw(new_password, salt), "updatedAt": _now()})
+        _log_lines.append(json.dumps({"at": _now(), "action": "admin_password_changed"}, ensure_ascii=False) + "\n")
+        _dirty = True
+        try:
+            _write_admin_local()
+            _write_local()
+        except OSError as e:
+            print(f"[community] 관리자 설정 로컬 저장 실패(원격 백업은 계속): {e}")

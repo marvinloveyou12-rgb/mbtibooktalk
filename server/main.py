@@ -664,7 +664,6 @@ async def community_import(body: ImportIn):
 
 
 # ── 관리자 (커뮤니티 글 삭제) ───────────────────────────────
-import hmac as _hmac
 from fastapi import Header, Request
 
 _ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "")
@@ -673,14 +672,14 @@ _ADMIN_MAX_FAILS, _ADMIN_WINDOW = 5, 600     # 10분에 5번 틀리면 잠시 �
 
 
 def _require_admin(request: Request, key: str):
-    if not _ADMIN_PASSWORD:
+    if not _cs.admin_configured(_ADMIN_PASSWORD):
         raise HTTPException(status_code=503, detail="ADMIN_PASSWORD가 설정되지 않았습니다.")
     ip = request.headers.get("x-forwarded-for", request.client.host if request.client else "").split(",")[0].strip()
     now = _time.time()
     fails = [t for t in _admin_fails.get(ip, []) if now - t < _ADMIN_WINDOW]
     if len(fails) >= _ADMIN_MAX_FAILS:
         raise HTTPException(status_code=429, detail="비밀번호를 여러 번 틀렸습니다. 10분 뒤 다시 시도해 주세요.")
-    if not _hmac.compare_digest((key or "").encode(), _ADMIN_PASSWORD.encode()):
+    if not _cs.check_admin_password(key, _ADMIN_PASSWORD):
         _admin_fails[ip] = fails + [now]
         raise HTTPException(status_code=401, detail="비밀번호가 올바르지 않습니다.")
     _admin_fails.pop(ip, None)
@@ -690,6 +689,21 @@ class AdminDeleteIn(BaseModel):
     kind: str   # rec | review
     group: str  # rec: MBTI 유형, review: 도서 키
     id: str
+
+
+class AdminPasswordIn(BaseModel):
+    newPassword: str
+
+
+@app.post("/api/admin/password")
+async def admin_change_password(body: AdminPasswordIn, request: Request, x_admin_key: str = Header("")):
+    _require_admin(request, x_admin_key)
+    _require_ready()
+    pw = body.newPassword
+    if not (4 <= len(pw) <= 100) or pw != pw.strip():
+        raise HTTPException(status_code=400, detail="비밀번호는 앞뒤 공백 없이 4~100자로 정해 주세요.")
+    _cs.set_admin_password(pw)
+    return {"ok": True}
 
 
 @app.get("/api/admin/items")

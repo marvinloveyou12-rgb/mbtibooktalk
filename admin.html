@@ -57,6 +57,13 @@ header{display:flex;align-items:center;justify-content:space-between;gap:12px;ma
 .del.confirm{background:var(--danger);color:#fff}
 .del:disabled{opacity:.5;cursor:default}
 .empty{text-align:center;color:var(--gray);padding:30px 0;font-size:.9rem}
+.hdr-btns{display:flex;gap:6px}
+#pwPanel{margin-bottom:16px}
+#pwPanel h2{font-size:1rem;margin-bottom:12px}
+#pwPanel form{display:grid;gap:8px;max-width:360px}
+#pwPanel input{padding:10px 12px;border:1px solid var(--line);border-radius:10px}
+#pwPanel .row{display:flex;gap:8px}
+.hint{font-size:.8rem;color:var(--gray)}
 .toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:var(--dark);color:#fff;padding:10px 18px;border-radius:10px;font-size:.88rem;opacity:0;transition:opacity .2s;pointer-events:none}
 .toast.show{opacity:1}
 @media (max-width:520px){ .item img{width:40px;height:56px} }
@@ -66,7 +73,10 @@ header{display:flex;align-items:center;justify-content:space-between;gap:12px;ma
 <div class="wrap">
   <header>
     <div class="logo">MBTI <span class="b">Book</span><span class="t">Talk</span><small>관리자</small></div>
-    <button class="btn btn-ghost" id="logoutBtn" hidden>로그아웃</button>
+    <div class="hdr-btns">
+      <button class="btn btn-ghost" id="pwBtn" hidden>비밀번호 변경</button>
+      <button class="btn btn-ghost" id="logoutBtn" hidden>로그아웃</button>
+    </div>
   </header>
 
   <section id="login" class="card">
@@ -80,6 +90,19 @@ header{display:flex;align-items:center;justify-content:space-between;gap:12px;ma
   </section>
 
   <section id="admin" hidden>
+    <div class="card" id="pwPanel" hidden>
+      <h2>관리자 비밀번호 변경</h2>
+      <form id="pwForm">
+        <input type="password" id="pwNew" placeholder="새 비밀번호 (4자 이상)" autocomplete="new-password" required minlength="4" maxlength="100">
+        <input type="password" id="pwNew2" placeholder="새 비밀번호 다시 입력" autocomplete="new-password" required>
+        <div class="row">
+          <button class="btn btn-primary" type="submit">변경</button>
+          <button class="btn btn-ghost" type="button" id="pwCancel">취소</button>
+        </div>
+        <div class="hint">바꾸면 다음 로그인부터 새 비밀번호를 써야 해요.</div>
+        <div class="err" id="pwErr"></div>
+      </form>
+    </div>
     <div class="stats">
       <div class="stat"><b id="nRecs">0</b><span>추천 도서</span></div>
       <div class="stat"><b id="nRevs">0</b><span>후기</span></div>
@@ -183,15 +206,31 @@ $('loginForm').addEventListener('submit', async e => {
 
 function enter(){
   try { sessionStorage.setItem('adminKey', key); } catch {}
-  $('login').hidden = true; $('admin').hidden = false; $('logoutBtn').hidden = false;
+  $('login').hidden = true; $('admin').hidden = false; $('logoutBtn').hidden = false; $('pwBtn').hidden = false;
 }
 function logout(msg){
   key = ''; try { sessionStorage.removeItem('adminKey'); } catch {}
-  $('admin').hidden = true; $('logoutBtn').hidden = true; $('login').hidden = false;
+  $('admin').hidden = true; $('logoutBtn').hidden = true; $('pwBtn').hidden = true; $('pwPanel').hidden = true; $('login').hidden = false;
   $('pw').value = ''; $('loginErr').textContent = msg || '';
 }
 
 $('logoutBtn').onclick = () => logout();
+$('pwBtn').onclick = () => { $('pwPanel').hidden = !$('pwPanel').hidden; $('pwErr').textContent=''; if(!$('pwPanel').hidden) $('pwNew').focus(); };
+$('pwCancel').onclick = () => { $('pwPanel').hidden = true; $('pwForm').reset(); };
+$('pwForm').addEventListener('submit', async e => {
+  e.preventDefault();
+  const pw = $('pwNew').value;
+  if (pw !== $('pwNew2').value){ $('pwErr').textContent = '두 비밀번호가 서로 달라요.'; return; }
+  try {
+    await api('/api/admin/password', {newPassword: pw});
+    key = pw; try { sessionStorage.setItem('adminKey', key); } catch {}
+    $('pwForm').reset(); $('pwPanel').hidden = true;
+    toast('비밀번호를 바꿨어요.');
+  } catch(err) {
+    if (err.status === 401) return logout('다시 로그인해 주세요.');
+    $('pwErr').textContent = err.message;
+  }
+});
 $('refreshBtn').onclick = () => load().then(()=>toast('새로 불러왔어요.')).catch(err => toast(err.message));
 $('q').addEventListener('input', render);
 $('typeFilter').addEventListener('change', render);
