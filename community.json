@@ -1,0 +1,55 @@
+{
+ "recs": {
+  "INTP": [
+   {
+    "id": "e79ed44c6673",
+    "title": "모모",
+    "author": "미하엘 엔데 글/시모나 체카렐리 그림/김영진 역",
+    "isbn": "9788934945727",
+    "cover": "https://image.yes24.com/goods/124719411/L",
+    "publisher": "김영사",
+    "review": "내 이름은 김삼순에서 나오는 명작",
+    "userKey": "u5gy4lluwmd8mwo83en0",
+    "createdAt": "2026-11-20T09:11:17+09:00"
+   }
+  ]
+ },
+ "reviews": {
+  "9788934961567": [
+   {
+    "id": "86d7f5f007d0",
+    "text": "어려워",
+    "mbti": "INTP",
+    "userKey": "u5gy4lluwmd8mwo83en0",
+    "dateStr": "2026. 11. 20.",
+    "createdAt": "2026-11-20T09:10:34+09:00"
+   }
+  ]
+ },
+ "hearts": {
+  "_probe_backup_test": [],
+  "htc_9788954682152": [
+   "umiqsp4bfrlbmwo6rw9l"
+  ],
+  "htc_9791191114256": [
+   "umiqsp4bfrlbmwo6rw9l"
+  ],
+  "htc_9791165341909": [
+   "umiqsp4bfrlbmwo6rw9l"
+  ],
+  "htc_9791190090018": [
+   "umiqsp4bfrlbmwo6rw9l"
+  ],
+  "htc_9788934961567": [
+   "u5gy4lluwmd8mwo83en0"
+  ],
+  "rc_INTP_e79ed44c6673": [
+   "u5gy4lluwmd8mwo83en0"
+  ]
+ },
+ "participants": {
+  "INTP": [
+   "u5gy4lluwmd8mwo83en0"
+  ]
+ }
+}
