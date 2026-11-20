@@ -12,6 +12,19 @@
     "userKey": "u5gy4lluwmd8mwo83en0",
     "createdAt": "2026-11-20T09:11:17+09:00"
    }
+  ],
+  "ISTP": [
+   {
+    "id": "1781531731119",
+    "title": "모모",
+    "author": "미하엘 엔데 (지은이), 시모나 체카렐리 (그림), 김영진 (옮긴이)",
+    "isbn": "9788934945727",
+    "cover": "https://image.aladin.co.kr/product/33073/45/cover200/k642937303_2.jpg",
+    "publisher": "김영사",
+    "review": "내 이름은 김삼순에 나오는 책이라서 읽어보게 되었는데 두께로 압도당했지만 마음에 와닿는 이야기가 많다...",
+    "userKey": "ur0wzdzem9jmqf9ysev",
+    "createdAt": "2026-06-15T13:55:31.117Z"
+   }
   ]
  },
  "reviews": {
@@ -45,11 +58,23 @@
   ],
   "rc_INTP_e79ed44c6673": [
    "u5gy4lluwmd8mwo83en0"
+  ],
+  "htc_9791198517425": [
+   "ur0wzdzem9jmqf9ysev"
+  ],
+  "rc_ISTP_1781531731119": [
+   "ur0wzdzem9jmqf9ysev"
+  ],
+  "hdc_9788934945727": [
+   "ur0wzdzem9jmqf9ysev"
   ]
  },
  "participants": {
   "INTP": [
    "u5gy4lluwmd8mwo83en0"
+  ],
+  "ISTP": [
+   "ur0wzdzem9jmqf9ysev"
   ]
  },
  "deleted": {}
