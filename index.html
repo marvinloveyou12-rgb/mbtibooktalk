@@ -840,7 +840,7 @@ function subscribeReviews(bkey, cb) {
 }
 
 async function addReview(bkey, text, mbti) {
-  const r = await _api('/api/community/reviews', {bkey, text, mbti:mbti||'MBTI', userKey:getUserKey()});
+  const r = await _api('/api/community/reviews', {bkey, text, mbti:mbti||'MBTI', title:state.book?.title||'', userKey:getUserKey()});
   const l=lsGet('rev_'+bkey,[]); l.unshift(r); lsSet('rev_'+bkey,l);
   if (_revSub?.bkey === bkey) _revSub.cb(l);
 }

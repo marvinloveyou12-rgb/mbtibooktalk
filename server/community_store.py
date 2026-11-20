@@ -36,7 +36,8 @@ DATA_FILE = "community.json"
 LOG_FILE = "log.jsonl"
 
 _lock = threading.RLock()
-_data = {"recs": {}, "reviews": {}, "hearts": {}, "participants": {}}
+# deleted: 관리자가 지운 항목 id — 브라우저에 남은 옛 데이터를 이관할 때 되살아나지 않게 한다
+_data = {"recs": {}, "reviews": {}, "hearts": {}, "participants": {}, "deleted": {}}
 _log_lines: list[str] = []
 _dirty = False
 _gh_dirty = False
@@ -315,7 +316,7 @@ def add_review(bkey: str, rev: dict) -> dict:
     item = {
         "id": uuid.uuid4().hex[:12],
         "text": _clip(rev.get("text"), 2000), "mbti": _clip(rev.get("mbti") or "MBTI", 8),
-        "userKey": _clip(rev.get("userKey"), 64),
+        "title": _clip(rev.get("title"), 300), "userKey": _clip(rev.get("userKey"), 64),
         "dateStr": datetime.now(_KST).strftime("%Y. %-m. %-d."), "createdAt": _now(),
     }
     with _lock:
@@ -351,12 +352,14 @@ def import_local(user_key: str, recs: dict, reviews: dict, hearts: list) -> dict
     """브라우저 localStorage에만 있던 기존 데이터를 한 번 옮겨 온다. 같은 항목은 건너뜀."""
     added = {"recs": 0, "reviews": 0, "hearts": 0}
     with _lock:
+        dead_recs = set(_data["deleted"].get("recs", []))
+        dead_revs = set(_data["deleted"].get("reviews", []))
         for mbti, lst in (recs or {}).items():
             existing = _data["recs"].setdefault(mbti, [])
             seen = {(r.get("userKey"), r.get("createdAt"), r.get("title")) for r in existing}
             for r in lst or []:
                 sig = (r.get("userKey") or user_key, r.get("createdAt"), r.get("title"))
-                if sig in seen or not r.get("title"):
+                if sig in seen or not r.get("title") or str(r.get("id")) in dead_recs:
                     continue
                 existing.append({
                     "id": _clip(r.get("id"), 32) or uuid.uuid4().hex[:12],
@@ -374,7 +377,7 @@ def import_local(user_key: str, recs: dict, reviews: dict, hearts: list) -> dict
             seen = {(r.get("userKey"), r.get("createdAt")) for r in existing}
             for r in lst or []:
                 sig = (r.get("userKey") or user_key, r.get("createdAt"))
-                if sig in seen or not r.get("text"):
+                if sig in seen or not r.get("text") or str(r.get("id")) in dead_revs:
                     continue
                 existing.append({
                     "id": _clip(r.get("id"), 32) or uuid.uuid4().hex[:12],
@@ -393,3 +396,34 @@ def import_local(user_key: str, recs: dict, reviews: dict, hearts: list) -> dict
         if any(added.values()):
             _changed({"action": "import_local", "userKey": user_key, **added})
     return added
+
+
+# ── 관리자 ───────────────────────────────────────────────────
+def admin_list() -> dict:
+    """관리 화면용 전체 목록 (최신순)."""
+    with _lock:
+        hearts = {k: len(v) for k, v in _data["hearts"].items()}
+        recs = [{**r, "type": t, "hearts": hearts.get(f"rc_{t}_{r['id']}", 0)}
+                for t, lst in _data["recs"].items() for r in lst]
+        reviews = [{**r, "bkey": k} for k, lst in _data["reviews"].items() for r in lst]
+    recs.sort(key=lambda r: r.get("createdAt") or "", reverse=True)
+    reviews.sort(key=lambda r: r.get("createdAt") or "", reverse=True)
+    return {"recs": recs, "reviews": reviews}
+
+
+def admin_delete(kind: str, group: str, item_id: str) -> bool:
+    """kind='rec'이면 group=MBTI 유형, kind='review'면 group=도서 키."""
+    section = {"rec": "recs", "review": "reviews"}[kind]
+    with _lock:
+        lst = _data[section].get(group, [])
+        item = next((x for x in lst if str(x.get("id")) == item_id), None)
+        if item is None:
+            return False
+        lst.remove(item)
+        if not lst:
+            _data[section].pop(group, None)
+        if kind == "rec":
+            _data["hearts"].pop(f"rc_{group}_{item_id}", None)
+        _data["deleted"].setdefault(section, []).append(item_id)
+        _changed({"action": f"admin_delete_{kind}", "group": group, "item": item})
+    return True

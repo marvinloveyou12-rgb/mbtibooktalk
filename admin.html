@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="robots" content="noindex, nofollow">
+  <title>MBTI Book Talk 관리자</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#F9F9F1;--white:#fff;--dark:#2C2C2C;--gray:#888;--light:#F0F0E8;--line:#E6E6DC;
+  --accent:#7C5CD6;--danger:#D64545;--danger-bg:#FDECEC;--ok:#2E7D32;
+  --radius:14px;--shadow-sm:0 2px 10px rgba(0,0,0,.06);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--dark);min-height:100vh}
+button,input,select{font-family:inherit;font-size:inherit}
+button{border:none;cursor:pointer;background:none}
+.wrap{max-width:880px;margin:0 auto;padding:24px 16px 60px}
+header{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:20px}
+.logo{font-family:'Black Han Sans',sans-serif;font-size:1.35rem}
+.logo .b{color:#FF7A45}.logo .t{color:var(--accent)}
+.logo small{font-family:'Noto Sans KR',sans-serif;font-size:.8rem;color:var(--gray);margin-left:8px;font-weight:500}
+.btn{padding:9px 16px;border-radius:10px;font-weight:700;font-size:.88rem}
+.btn-primary{background:var(--accent);color:#fff}
+.btn-ghost{background:var(--light);color:var(--dark)}
+.card{background:var(--white);border-radius:var(--radius);box-shadow:var(--shadow-sm);padding:22px}
+
+#login{max-width:380px;margin:12vh auto 0}
+#login h1{font-size:1.15rem;margin-bottom:6px}
+#login p{font-size:.85rem;color:var(--gray);margin-bottom:16px}
+#login form{display:flex;gap:8px}
+#login input{flex:1;padding:10px 12px;border:1px solid var(--line);border-radius:10px;min-width:0}
+.err{color:var(--danger);font-size:.84rem;margin-top:10px;min-height:1.2em}
+
+.stats{display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap}
+.stat{flex:1;min-width:120px;background:var(--white);border-radius:var(--radius);box-shadow:var(--shadow-sm);padding:14px 16px}
+.stat b{display:block;font-size:1.5rem}
+.stat span{font-size:.8rem;color:var(--gray)}
+.tabs{display:flex;gap:6px;margin-bottom:12px}
+.tab{padding:8px 16px;border-radius:999px;background:var(--light);font-weight:700;font-size:.88rem;color:var(--gray)}
+.tab.active{background:var(--dark);color:#fff}
+.toolbar{display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap}
+.toolbar input{flex:1;min-width:180px;padding:9px 12px;border:1px solid var(--line);border-radius:10px;background:var(--white)}
+.toolbar select{padding:9px 10px;border:1px solid var(--line);border-radius:10px;background:var(--white)}
+
+.item{display:flex;gap:14px;align-items:flex-start;padding:14px 0;border-top:1px solid var(--line)}
+.item:first-child{border-top:none}
+.item img{width:48px;height:68px;object-fit:cover;border-radius:6px;background:var(--light);flex-shrink:0}
+.item .body{flex:1;min-width:0}
+.item .title{font-weight:700;font-size:.95rem;overflow-wrap:anywhere}
+.item .meta{font-size:.78rem;color:var(--gray);margin-top:3px;display:flex;gap:8px;flex-wrap:wrap}
+.item .text{font-size:.88rem;margin-top:6px;white-space:pre-wrap;overflow-wrap:anywhere}
+.chip{display:inline-block;padding:1px 8px;border-radius:999px;background:var(--light);font-weight:700;color:var(--dark)}
+.del{padding:7px 12px;border-radius:9px;background:var(--danger-bg);color:var(--danger);font-weight:700;font-size:.82rem;white-space:nowrap;flex-shrink:0}
+.del.confirm{background:var(--danger);color:#fff}
+.del:disabled{opacity:.5;cursor:default}
+.empty{text-align:center;color:var(--gray);padding:30px 0;font-size:.9rem}
+.toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:var(--dark);color:#fff;padding:10px 18px;border-radius:10px;font-size:.88rem;opacity:0;transition:opacity .2s;pointer-events:none}
+.toast.show{opacity:1}
+@media (max-width:520px){ .item img{width:40px;height:56px} }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="logo">MBTI <span class="b">Book</span><span class="t">Talk</span><small>관리자</small></div>
+    <button class="btn btn-ghost" id="logoutBtn" hidden>로그아웃</button>
+  </header>
+
+  <section id="login" class="card">
+    <h1>관리자 로그인</h1>
+    <p>커뮤니티에 올라온 추천 도서와 후기를 관리합니다.</p>
+    <form id="loginForm">
+      <input type="password" id="pw" placeholder="관리자 비밀번호" autocomplete="current-password" required>
+      <button class="btn btn-primary" type="submit">들어가기</button>
+    </form>
+    <div class="err" id="loginErr"></div>
+  </section>
+
+  <section id="admin" hidden>
+    <div class="stats">
+      <div class="stat"><b id="nRecs">0</b><span>추천 도서</span></div>
+      <div class="stat"><b id="nRevs">0</b><span>후기</span></div>
+    </div>
+    <div class="tabs">
+      <button class="tab active" data-tab="recs">추천 도서</button>
+      <button class="tab" data-tab="reviews">후기</button>
+    </div>
+    <div class="toolbar">
+      <input type="search" id="q" placeholder="제목·저자·내용 검색">
+      <select id="typeFilter"><option value="">모든 유형</option></select>
+      <button class="btn btn-ghost" id="refreshBtn">새로고침</button>
+    </div>
+    <div class="card"><div id="list"></div></div>
+  </section>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+const TYPES = ['INTJ','INTP','ENTJ','ENTP','INFJ','INFP','ENFJ','ENFP','ISTJ','ISFJ','ESTJ','ESFJ','ISTP','ISFP','ESTP','ESFP'];
+let key = '';
+let data = {recs: [], reviews: []};
+let tab = 'recs';
+
+const $ = id => document.getElementById(id);
+function esc(s){ return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function fmt(iso){ if(!iso) return ''; const d = new Date(iso); return isNaN(d) ? iso : d.toLocaleString('ko-KR',{dateStyle:'short',timeStyle:'short'}); }
+function toast(msg){ const t=$('toast'); t.textContent=msg; t.classList.add('show'); clearTimeout(toast._t); toast._t=setTimeout(()=>t.classList.remove('show'),2200); }
+
+async function api(path, body){
+  const r = await fetch(path, body ? {method:'POST', headers:{'Content-Type':'application/json','X-Admin-Key':key}, body:JSON.stringify(body)}
+                                   : {headers:{'X-Admin-Key':key}});
+  const d = await r.json().catch(()=>({}));
+  if(!r.ok){ const e = new Error(d.detail || `HTTP ${r.status}`); e.status = r.status; throw e; }
+  return d;
+}
+
+async function load(){
+  data = await api('/api/admin/items');
+  $('nRecs').textContent = data.recs.length;
+  $('nRevs').textContent = data.reviews.length;
+  render();
+}
+
+function render(){
+  const q = $('q').value.trim().toLowerCase();
+  const type = $('typeFilter').value;
+  const items = (tab === 'recs' ? data.recs : data.reviews).filter(x => {
+    if (type && (tab === 'recs' ? x.type : x.mbti) !== type) return false;
+    if (!q) return true;
+    return [x.title, x.author, x.review, x.text, x.publisher, x.bkey].some(v => (v||'').toLowerCase().includes(q));
+  });
+  if (!items.length){ $('list').innerHTML = `<div class="empty">${q||type ? '조건에 맞는 항목이 없어요.' : '아직 올라온 항목이 없어요.'}</div>`; return; }
+  $('list').innerHTML = items.map(x => tab === 'recs' ? `
+    <div class="item">
+      ${x.cover ? `<img src="${esc(x.cover)}" alt="" loading="lazy" onerror="this.style.visibility='hidden'">` : '<img alt="">'}
+      <div class="body">
+        <div class="title">${esc(x.title)}</div>
+        <div class="meta"><span class="chip">${esc(x.type)}</span><span>${esc(x.author)}</span><span>❤️ ${x.hearts||0}</span><span>${esc(fmt(x.createdAt))}</span></div>
+        ${x.review ? `<div class="text">${esc(x.review)}</div>` : ''}
+      </div>
+      <button class="del" data-kind="rec" data-group="${esc(x.type)}" data-id="${esc(x.id)}">삭제</button>
+    </div>` : `
+    <div class="item">
+      <div class="body">
+        <div class="title">${esc(x.title || x.bkey)}</div>
+        <div class="meta"><span class="chip">${esc(x.mbti)}</span><span>${esc(fmt(x.createdAt))}</span></div>
+        <div class="text">${esc(x.text)}</div>
+      </div>
+      <button class="del" data-kind="review" data-group="${esc(x.bkey)}" data-id="${esc(x.id)}">삭제</button>
+    </div>`).join('');
+}
+
+/* 삭제는 두 번 눌러야 실행 — 실수로 지우는 것 방지 */
+$('list').addEventListener('click', async e => {
+  const btn = e.target.closest('.del');
+  if (!btn || btn.disabled) return;
+  if (!btn.classList.contains('confirm')){
+    document.querySelectorAll('.del.confirm').forEach(b => { b.classList.remove('confirm'); b.textContent='삭제'; });
+    btn.classList.add('confirm'); btn.textContent = '정말 삭제';
+    clearTimeout(btn._t); btn._t = setTimeout(() => { btn.classList.remove('confirm'); btn.textContent='삭제'; }, 4000);
+    return;
+  }
+  btn.disabled = true; btn.textContent = '삭제 중…';
+  try {
+    await api('/api/admin/delete', {kind:btn.dataset.kind, group:btn.dataset.group, id:btn.dataset.id});
+    toast('삭제했어요.');
+    await load();
+  } catch(err) {
+    if (err.status === 401) return logout('다시 로그인해 주세요.');
+    toast(err.message); btn.disabled = false; btn.classList.remove('confirm'); btn.textContent = '삭제';
+  }
+});
+
+$('loginForm').addEventListener('submit', async e => {
+  e.preventDefault();
+  key = $('pw').value; $('loginErr').textContent = '';
+  try { await load(); enter(); }
+  catch(err){ key = ''; $('loginErr').textContent = err.message; }
+});
+
+function enter(){
+  try { sessionStorage.setItem('adminKey', key); } catch {}
+  $('login').hidden = true; $('admin').hidden = false; $('logoutBtn').hidden = false;
+}
+function logout(msg){
+  key = ''; try { sessionStorage.removeItem('adminKey'); } catch {}
+  $('admin').hidden = true; $('logoutBtn').hidden = true; $('login').hidden = false;
+  $('pw').value = ''; $('loginErr').textContent = msg || '';
+}
+
+$('logoutBtn').onclick = () => logout();
+$('refreshBtn').onclick = () => load().then(()=>toast('새로 불러왔어요.')).catch(err => toast(err.message));
+$('q').addEventListener('input', render);
+$('typeFilter').addEventListener('change', render);
+document.querySelectorAll('.tab').forEach(t => t.onclick = () => {
+  tab = t.dataset.tab;
+  document.querySelectorAll('.tab').forEach(x => x.classList.toggle('active', x === t));
+  render();
+});
+$('typeFilter').innerHTML += TYPES.map(t => `<option>${t}</option>`).join('');
+
+/* 같은 탭에서 새로고침하면 다시 로그인하지 않아도 되게 */
+try { key = sessionStorage.getItem('adminKey') || ''; } catch {}
+if (key) load().then(enter).catch(() => logout());
+</script>
+</body>
+</html>

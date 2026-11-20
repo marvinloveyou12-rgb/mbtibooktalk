@@ -571,6 +571,7 @@ class ReviewIn(BaseModel):
     bkey: str
     text: str
     mbti: str = "MBTI"
+    title: str = ""
     userKey: str
 
 
@@ -660,6 +661,52 @@ async def community_import(body: ImportIn):
     reviews = {k[:100]: v for k, v in body.reviews.items() if isinstance(v, list)}
     hearts = [h for h in body.hearts if isinstance(h, str)][:500]
     return {"added": _cs.import_local(body.userKey[:64], recs, reviews, hearts)}
+
+
+# ── 관리자 (커뮤니티 글 삭제) ───────────────────────────────
+import hmac as _hmac
+from fastapi import Header, Request
+
+_ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "")
+_admin_fails: dict[str, list[float]] = {}  # IP → 최근 실패 시각
+_ADMIN_MAX_FAILS, _ADMIN_WINDOW = 5, 600     # 10분에 5번 틀리면 잠시 차단
+
+
+def _require_admin(request: Request, key: str):
+    if not _ADMIN_PASSWORD:
+        raise HTTPException(status_code=503, detail="ADMIN_PASSWORD가 설정되지 않았습니다.")
+    ip = request.headers.get("x-forwarded-for", request.client.host if request.client else "").split(",")[0].strip()
+    now = _time.time()
+    fails = [t for t in _admin_fails.get(ip, []) if now - t < _ADMIN_WINDOW]
+    if len(fails) >= _ADMIN_MAX_FAILS:
+        raise HTTPException(status_code=429, detail="비밀번호를 여러 번 틀렸습니다. 10분 뒤 다시 시도해 주세요.")
+    if not _hmac.compare_digest((key or "").encode(), _ADMIN_PASSWORD.encode()):
+        _admin_fails[ip] = fails + [now]
+        raise HTTPException(status_code=401, detail="비밀번호가 올바르지 않습니다.")
+    _admin_fails.pop(ip, None)
+
+
+class AdminDeleteIn(BaseModel):
+    kind: str   # rec | review
+    group: str  # rec: MBTI 유형, review: 도서 키
+    id: str
+
+
+@app.get("/api/admin/items")
+async def admin_items(request: Request, x_admin_key: str = Header("")):
+    _require_admin(request, x_admin_key)
+    return _cs.admin_list()
+
+
+@app.post("/api/admin/delete")
+async def admin_delete(body: AdminDeleteIn, request: Request, x_admin_key: str = Header("")):
+    _require_admin(request, x_admin_key)
+    _require_ready()
+    if body.kind not in ("rec", "review"):
+        raise HTTPException(status_code=400, detail="kind는 rec 또는 review")
+    if not _cs.admin_delete(body.kind, body.group, body.id):
+        raise HTTPException(status_code=404, detail="이미 삭제되었거나 없는 항목입니다.")
+    return {"ok": True}
 
 
 # HTML·JS에 캐시 헤더가 없으면 브라우저가 배포 전 옛 페이지를 계속 쓰므로 매번 재검증하게 한다
