@@ -662,6 +662,16 @@ async def community_import(body: ImportIn):
     return {"added": _cs.import_local(body.userKey[:64], recs, reviews, hearts)}
 
 
+# HTML·JS에 캐시 헤더가 없으면 브라우저가 배포 전 옛 페이지를 계속 쓰므로 매번 재검증하게 한다
+@app.middleware("http")
+async def _no_stale_pages(request, call_next):
+    resp = await call_next(request)
+    path = request.url.path
+    if not path.startswith("/api/") and (path.endswith("/") or path.endswith((".html", ".js"))):
+        resp.headers["Cache-Control"] = "no-cache"
+    return resp
+
+
 # 상위 디렉터리(mbtibooktalk 루트)를 정적으로 서빙
 _root = os.path.join(os.path.dirname(__file__), "..")
 app.mount("/", StaticFiles(directory=_root, html=True), name="static")
