@@ -7,12 +7,18 @@
 - COMMUNITY_DATA_REPO    : 기본 "dongle0516/mbtibooktalk-data"
 - COMMUNITY_DATA_DIR     : 로컬 저장 경로 (기본 server/../data)
 - COMMUNITY_SYNC_SECONDS : 업로드 주기 (기본 60초)
+- GITHUB_TOKEN           : 있으면 같은 데이터를 GitHub 저장소의 별도 브랜치에도 사본으로 올린다
+- GITHUB_DATA_REPO       : 기본 "marvinloveyou12-rgb/mbtibooktalk"
+- GITHUB_DATA_BRANCH     : 기본 "data" (main에 쓰면 코드 push가 충돌하므로 분리)
+- GITHUB_SYNC_SECONDS    : GitHub 업로드 주기 (기본 300초)
 """
 import json
 import os
 import threading
 import time
 import uuid
+
+import httpx
 from datetime import datetime, timezone, timedelta
 
 _KST = timezone(timedelta(hours=9))
@@ -21,6 +27,10 @@ HF_TOKEN = os.getenv("HF_TOKEN", "")
 DATA_REPO = os.getenv("COMMUNITY_DATA_REPO", "dongle0516/mbtibooktalk-data")
 LOCAL_DIR = os.getenv("COMMUNITY_DATA_DIR", os.path.join(os.path.dirname(__file__), "..", "data"))
 SYNC_SECONDS = int(os.getenv("COMMUNITY_SYNC_SECONDS", "60"))
+GITHUB_TOKEN = os.getenv("GITHUB_TOKEN", "")
+GITHUB_REPO = os.getenv("GITHUB_DATA_REPO", "marvinloveyou12-rgb/mbtibooktalk")
+GITHUB_BRANCH = os.getenv("GITHUB_DATA_BRANCH", "data")
+GITHUB_SYNC_SECONDS = int(os.getenv("GITHUB_SYNC_SECONDS", "300"))
 
 DATA_FILE = "community.json"
 LOG_FILE = "log.jsonl"
@@ -29,11 +39,24 @@ _lock = threading.RLock()
 _data = {"recs": {}, "reviews": {}, "hearts": {}, "participants": {}}
 _log_lines: list[str] = []
 _dirty = False
+_gh_dirty = False
+_gh_last = 0.0
 # 원격 복원에 실패한 상태에서 업로드하면 원격 데이터를 빈 값으로 덮어쓰게 되므로,
 # 복원이 확인되기 전에는 업로드하지 않는다.
 _remote_ready = False
 _status = {"remote": bool(HF_TOKEN), "repo": DATA_REPO, "loaded_from": None,
-           "last_sync": None, "last_error": None}
+           "last_sync": None, "last_error": None,
+           "github": {"enabled": bool(GITHUB_TOKEN), "repo": GITHUB_REPO, "branch": GITHUB_BRANCH,
+                      "last_sync": None, "last_error": None}}
+
+_GH_README = """# MBTI Book Talk 커뮤니티 데이터
+
+서버가 자동으로 올리는 사본입니다. 직접 수정하지 마세요(다음 동기화 때 덮어써집니다).
+원본·복원용 백업은 Hugging Face 비공개 데이터셋에 있습니다.
+
+- `community.json` — 현재 데이터 (recs: 유형별 추천 도서, reviews: 도서별 후기, hearts: 하트 누른 사용자, participants: 유형별 참가자)
+- `log.jsonl` — 모든 저장 활동 기록 (시간순, 한 줄에 한 건)
+"""
 
 
 def _now() -> str:
@@ -141,17 +164,61 @@ def _upload():
         print(f"[community] 업로드 실패(다음 주기에 재시도): {e}")
 
 
+def _github_upload():
+    """data 브랜치에 community.json·log.jsonl을 한 커밋으로 올린다(브랜치에는 데이터 파일만 둔다)."""
+    global _gh_dirty, _gh_last
+    with _lock:
+        if not _gh_dirty:
+            return
+        payload = json.dumps(_data, ensure_ascii=False, indent=1)
+        log_text = "".join(_log_lines)
+        _gh_dirty = False
+    _gh_last = time.time()
+    api = f"https://api.github.com/repos/{GITHUB_REPO}/git"
+    headers = {"Authorization": f"Bearer {GITHUB_TOKEN}", "Accept": "application/vnd.github+json"}
+    try:
+        with httpx.Client(timeout=30.0, headers=headers) as c:
+            r = c.get(f"{api}/ref/heads/{GITHUB_BRANCH}")
+            parent = r.json()["object"]["sha"] if r.status_code == 200 else None
+            if r.status_code not in (200, 404):
+                r.raise_for_status()
+            files = {"README.md": _GH_README, DATA_FILE: payload, LOG_FILE: log_text}
+            tree = c.post(f"{api}/trees", json={"tree": [
+                {"path": k, "mode": "100644", "type": "blob", "content": v} for k, v in files.items()]})
+            tree.raise_for_status()
+            commit = c.post(f"{api}/commits", json={
+                "message": f"community data {_now()}", "tree": tree.json()["sha"],
+                "parents": [parent] if parent else []})
+            commit.raise_for_status()
+            sha = commit.json()["sha"]
+            if parent:
+                c.patch(f"{api}/refs/heads/{GITHUB_BRANCH}", json={"sha": sha}).raise_for_status()
+            else:
+                c.post(f"{api}/refs", json={"ref": f"refs/heads/{GITHUB_BRANCH}", "sha": sha}).raise_for_status()
+        _status["github"]["last_sync"] = _now()
+        _status["github"]["last_error"] = None
+    except Exception as e:
+        with _lock:
+            _gh_dirty = True
+        detail = getattr(getattr(e, "response", None), "text", "")[:200]
+        _status["github"]["last_error"] = f"{_now()} {e} {detail}".strip()
+        print(f"[community] GitHub 업로드 실패(다음 주기에 재시도): {e} {detail}")
+
+
 def _sync_loop():
-    global _remote_ready
+    global _remote_ready, _gh_dirty
     while True:
         if not _remote_ready:
             try:
                 _remote_ready = _load_remote()
+                _gh_dirty = _remote_ready  # 복원 직후 GitHub 사본도 최신으로 맞춘다
             except Exception as e:
                 _status["last_error"] = f"{_now()} 복원 실패: {e}"
                 print(f"[community] 원격 복원 실패(재시도 예정): {e}")
         else:
             _upload()
+            if GITHUB_TOKEN and time.time() - _gh_last >= GITHUB_SYNC_SECONDS:
+                _github_upload()
         time.sleep(SYNC_SECONDS if _remote_ready else 15)
 
 
@@ -167,6 +234,8 @@ def flush():
     """종료 직전 호출: 남은 변경분 업로드."""
     if HF_TOKEN and _remote_ready:
         _upload()
+        if GITHUB_TOKEN:
+            _github_upload()
 
 
 def is_ready() -> bool:
@@ -186,9 +255,10 @@ def status() -> dict:
 
 
 def _changed(event: dict):
-    global _dirty
+    global _dirty, _gh_dirty
     _log_lines.append(json.dumps({"at": _now(), **event}, ensure_ascii=False) + "\n")
     _dirty = True
+    _gh_dirty = True
     try:
         _write_local()
     except OSError as e:
