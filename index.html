@@ -28,7 +28,7 @@ img{max-width:100%}
   padding:14px 20px;display:flex;align-items:center;justify-content:space-between;
   position:sticky;top:0;z-index:100;
 }
-.header-logo{font-family:'Black Han Sans',sans-serif;font-size:1.3rem;display:flex;gap:3px;align-items:center}
+.header-logo{font-family:'Black Han Sans',sans-serif;font-size:1.3rem;display:flex;gap:3px;align-items:center;user-select:none;-webkit-user-select:none;touch-action:manipulation}
 .logo-m{color:var(--dark)}.logo-b{color:var(--orange)}.logo-t{color:var(--purple)}
 .header-back{font-size:1.4rem;padding:4px 10px;border-radius:8px;color:var(--dark);transition:background .15s}
 .header-back:hover{background:var(--light)}
@@ -696,7 +696,7 @@ img{max-width:100%}
 <header class="site-header" id="siteHeader">
   <button class="header-back" id="headerBack" onclick="goBack()" style="display:none">←</button>
   <div style="width:40px" id="headerBackSpace"></div>
-  <div class="header-logo">
+  <div class="header-logo" id="headerLogo">
     <span class="logo-m">MBTI</span>&nbsp;<span class="logo-b">Book</span><span class="logo-t">Talk</span>
   </div>
   <div class="header-right">
@@ -2599,6 +2599,16 @@ function shareComposed(){
 state.type=lsGet('myMBTI','INTJ');
 _backfillParticipants();
 startOnlineTracker();
+
+/* 숨은 관리자 입구: 로고를 3초 안에 5번 누르면 관리자 페이지로 이동 */
+(function(){
+  let taps = [];
+  document.getElementById('headerLogo').addEventListener('click', () => {
+    const now = Date.now();
+    taps = taps.filter(t => now - t < 3000).concat(now);
+    if (taps.length >= 5) { taps = []; location.href = '/admin.html'; }
+  });
+})();
 renderPage();
 syncCommunity();
 </script>
